@@ -1,0 +1,9 @@
+# A whole dashboard VIEW holding only the radar, full screen. Add it as a new view
+# (dashboard editor > Add view > edit in YAML), or let tools/lovelace-ws.mjs add-view do it.
+title: Radar
+path: radar
+type: panel
+cards:
+  - type: custom:wall-radar-card
+    height: 100vh
+    basemap: auto

@@ -1,0 +1,16 @@
+# The smallest working card. With nothing else set it centres on your Home Assistant location
+# (Settings > System > General) and picks the nearest NEXRAD radar.
+type: custom:wall-radar-card
+
+# Everything below is optional. Uncomment what you want to change; docs/options.md lists every option.
+# height: 525px              # any CSS length; 100vh for a full-screen panel view
+# zoom_level: 8
+# center_latitude: 35.47     # set both, or neither
+# center_longitude: -97.52
+# site: TLX                  # a NEXRAD site ID; unset = nearest to the centre
+# basemap: auto              # day_basemap while sun.sun is up, night_basemap after sunset
+# day_basemap: ink
+# night_basemap: night
+# forecast_hours: 2          # HRRR forecast frames after "now"; 0 turns them off
+# show_labels: true          # place names
+# show_status: true          # a small chip when data is stale or the site is offline

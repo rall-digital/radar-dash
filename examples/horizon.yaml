@@ -1,0 +1,54 @@
+# wall-horizon-card: a full-screen wall display built around the radar. As-is: it was drawn for one
+# 1280 x 800 tablet (it scales to fit other sizes) and you are expected to adapt it.
+#
+# Every entity below is a PLACEHOLDER. Replace each with one of yours, or delete the line or block:
+# anything left out is simply not drawn, and its tap does nothing.
+# Needs BOTH resources registered: wall-radar-card.js and wall-horizon-card.js.
+title: Horizon
+path: horizon
+type: panel
+cards:
+  - type: custom:wall-horizon-card
+    # Passed to the embedded wall-radar-card (any of its options except height).
+    radar:
+      basemap: auto
+      day_basemap: satellite
+      night_basemap: ink
+      frame_count: 10
+      forecast_hours: 2
+      home_position: [0.5625, 0.49]   # where your location sits on screen, clear of the clock and the panels
+    temperature_entity: sensor.outdoor_temperature   # any sensor with a numeric state
+    weather_entity: weather.forecast_home            # must support daily and hourly forecasts
+    rooms:                                           # up to 3 climate entities
+      - entity: climate.living_room
+        icon: mdi:sofa
+        name: Living room
+      - entity: climate.bedroom
+        icon: mdi:bed
+        name: Bedroom
+
+    # ---- optional household controls; delete what you do not have -------------------------------
+    # Now-playing pill with a pause button, shown while this player is "playing".
+    music: media_player.living_room_speaker
+    # A switch drawn as an "Xbox" pill (see examples/packages/scene_switch.yaml for one way to make it).
+    xbox:
+      switch: switch.game_scene
+      now_playing: sensor.game_now_playing           # optional text under the pill
+    # Two buttons that each trigger an automation, with a progress bar that runs for `seconds`.
+    screen:
+      down: automation.projector_screen_down
+      up: automation.projector_screen_up
+      seconds: 45
+    # Hidden taps: the date turns the volume down, the outside temperature turns it up.
+    volume:
+      down: script.volume_down
+      up: script.volume_up
+      targets: [media_player.receiver, media_player.tv]   # whose level the toast reads: the first that is on, else the last
+      labels: [Receiver, TV]
+    # Hidden tap: the clock sends one command to a remote.
+    select:
+      remote: remote.living_room_tv
+      command: select
+      label: TV
+    # An input_text you fill yourself with "phase|start|end|misses" (see docs/options.md). Most people leave this out.
+    # rain_window: input_text.rain_window

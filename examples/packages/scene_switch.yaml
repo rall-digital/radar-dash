@@ -1,0 +1,26 @@
+# Optional. One way to give wall-horizon-card's `xbox.switch` something to control: a template switch that is "on"
+# while a receiver is on a given input, and that runs two of your own scripts to start and stop the scene.
+#
+# Every entity here is a PLACEHOLDER. Replace media_player.receiver, the source name and the two scripts.
+# This file is a package: put it in /config/packages/ and make sure configuration.yaml has
+#   homeassistant:
+#     packages: !include_dir_named packages
+# then check the configuration and restart Home Assistant.
+template:
+  - switch:
+      - name: Game scene
+        unique_id: radar_dash_game_scene
+        icon: mdi:controller
+        state: >-
+          {{ is_state('media_player.receiver', 'on')
+             and is_state_attr('media_player.receiver', 'source', 'Game') }}
+        availability: >-
+          {{ states('media_player.receiver') not in ['unavailable', 'unknown'] }}
+        turn_on:
+          - action: script.turn_on
+            target:
+              entity_id: script.game_scene_on
+        turn_off:
+          - action: script.turn_on
+            target:
+              entity_id: script.game_scene_off
