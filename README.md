@@ -262,9 +262,14 @@ Bundled: Leaflet 1.9.4 (BSD 2-Clause) and the Figtree and Fredoka fonts (SIL Ope
 
 ## Development
 
-There is no build. `dist/` is the product: edit the files and reload. This repository is generated from a private
-working tree by an export script, so pull requests cannot be merged directly, but issues and patches are welcome
-and get applied upstream.
+There is no build. `dist/` is the product: edit the files and reload. Issues and pull requests are welcome.
+
+The tests run in Node 22 or later with no dependencies and nothing to install. They import the files in `dist/`
+directly, and never reach a network or a Home Assistant:
+
+```sh
+npm test            # or: node --test "test/*.test.mjs"
+```
 
 `tools/lovelace-ws.mjs` is a small Home Assistant websocket helper (Node 22+, no dependencies) used by the agent
 install: read-only inspection, a dashboard backup, and a few guarded writes that refuse without `--confirm-write`.

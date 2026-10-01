@@ -1,0 +1,38 @@
+// The spec's performance rules, checked in the card's source: no backdrop-filter anywhere, and every animation and
+// transition moves only transform or opacity. Run: node --test test/static.test.mjs
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+
+const src = fs.readFileSync(new URL('../dist/wall-horizon-card.js', import.meta.url), 'utf8');
+
+test('no backdrop-filter', () => {
+  assert.equal(/backdrop-filter/.test(src), false);
+});
+
+test('keyframes animate only transform and opacity', () => {
+  for (const [, name, body] of src.matchAll(/@keyframes\s+([\w-]+)\s*\{((?:[^{}]*\{[^{}]*\})*)[^{}]*\}/g)) {
+    const props = [...body.matchAll(/([a-z-]+)\s*:/g)].map((m) => m[1]);
+    assert.ok(props.length, `${name} has properties`);
+    for (const p of props) assert.ok(p === 'transform' || p === 'opacity', `@keyframes ${name} animates ${p}`);
+  }
+});
+
+test('transitions move only transform or opacity', () => {
+  for (const [, value] of src.matchAll(/transition:\s*([^;]+);/g)) {
+    for (const part of value.split(',')) {
+      const prop = part.trim().split(/\s+/)[0];
+      assert.ok(prop === 'transform' || prop === 'opacity', `transition on ${prop}`);
+    }
+  }
+});
+
+test('no blur filter: the dial\'s glow is a wider translucent stroke (dial spec, Performance)', () => {
+  assert.equal(/feGaussianBlur|filter\s*:\s*blur|<filter\b/.test(src), false);
+});
+
+test('the pending ring and the pending chip hold still under prefers-reduced-motion', () => {
+  const blocks = [...src.matchAll(/@media \(prefers-reduced-motion: reduce\) \{((?:[^{}]*\{[^{}]*\})*)[^{}]*\}/g)].map((m) => m[1]).join('\n');
+  assert.match(blocks, /\.d-ring\.sending[^{]*\{\s*animation: none/);
+  assert.match(blocks, /\.chip\[data-pending\]::after[^{]*\{\s*animation: none/);
+});
