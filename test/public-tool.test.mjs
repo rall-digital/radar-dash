@@ -467,3 +467,16 @@ test('V2 inspect lists a wall-thermostat-card resource wherever it is registered
   assert.deepEqual(out.resources.map((r) => r.url), ['/local/cards/wall-thermostat-card.js']);
   assert.equal(out.resource_count, 2);
 });
+
+test('V3 the HACS prefix has no trailing slash, as in HACS: a /hacsfiles/radar-dash-extra/ entry listed first warns', () => {
+  // HACS 2.0.5 custom_components/hacs/repositories/plugin.py: line 160 builds the namespace as f"/hacsfiles/{name}"
+  // (no slash), and line 217 rewrites the first entry with entry_url.startswith(namespace). So this entry, from
+  // another repository, would be the one turned into wall-radar-card.js.
+  const extra = { id: 'x', url: '/hacsfiles/radar-dash-extra/other-card.js', type: 'module' };
+  const ins = run(['inspect'], { state: { resources: [extra, HACS_RADAR] } });
+  assert.equal(ins.code, 0, ins.out);
+  const w = JSON.parse(ins.out).warnings;
+  assert.equal(w.length, 1, ins.out);
+  assert.match(w[0], /radar-dash-extra\/other-card\.js/);
+  assert.deepEqual(JSON.parse(run(['inspect'], { state: { resources: [HACS_RADAR, extra] } }).out).warnings, [], 'radar first: fine');
+});
