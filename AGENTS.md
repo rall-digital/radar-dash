@@ -174,6 +174,8 @@ no radar entry at all) is turned into a second radar entry by the next update, a
 yes: `remove-resource` each `/hacsfiles/radar-dash/` entry that is not the first radar entry, have the human
 redownload radar-dash in HACS if no radar entry is left, then `add-resource` the extra entries again (new entries go
 to the end of the list). Check with `inspect` that `warnings` is empty. Never remove the HACS radar entry itself.
+If an update already left two entries with the SAME radar URL, `remove-resource` refuses (`found 2`): ask the human
+to delete the later of the two under Settings > Dashboards > three-dot menu > Resources, then run `verify` again.
 
 **B. By hand** (no HACS, or the human prefers it). The files must end up in `/config/www/radar-dash/` on the Home
 Assistant machine, with the `fonts/` folder inside it. You probably cannot reach that filesystem; do not look for
