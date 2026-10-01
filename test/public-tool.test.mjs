@@ -427,3 +427,43 @@ test('T3 the thermostat card is found by type, and a view holding only it can be
   assert.equal(rm.code, 0, rm.out);
   assert.deepEqual(rm.saves[0].views, EXISTING);
 });
+
+// HACS 2.x (repositories/plugin.py, update_dashboard_resources) rewrites the FIRST resource whose URL starts with
+// /hacsfiles/radar-dash to the radar card file on every update. An extra card listed before the radar entry, or with
+// no radar entry at all, is turned into a second radar entry by the next update.
+const HACS_RADAR = { id: 'r', url: '/hacsfiles/radar-dash/wall-radar-card.js?hacstag=1', type: 'module' };
+const HACS_HZ = { id: 'h', url: '/hacsfiles/radar-dash/wall-horizon-card.js', type: 'module' };
+const HACS_TH = { id: 't', url: '/hacsfiles/radar-dash/wall-thermostat-card.js', type: 'module' };
+
+test('V1 inspect and verify warn when an extra radar-dash resource precedes the HACS radar entry', () => {
+  const hz = { title: 'H', type: 'panel', cards: [{ type: 'custom:wall-horizon-card' }] };
+  const dashboards = { default: null, 'wall-tablet': { views: [hz] } };
+  const served = servedAt('/hacsfiles/radar-dash/', true);
+  for (const resources of [[HACS_HZ, HACS_RADAR], [HACS_TH, HACS_RADAR, HACS_HZ], [HACS_TH]]) {
+    const ins = run(['inspect'], { state: { dashboards, resources } });
+    assert.equal(ins.code, 0, ins.out);
+    const w = JSON.parse(ins.out).warnings;
+    assert.equal(w.length, 1, ins.out);
+    assert.match(w[0], new RegExp(resources[0].url.split('/').pop()));
+    assert.match(w[0], /HACS/);
+    const ver = run(['verify', 'wall-tablet'], { state: { dashboards, resources, served: { ...served, [HACS_TH.url]: TH_JS } } });
+    assert.match(ver.out, /^WARN: .*wall-(horizon|thermostat)-card\.js.*HACS/m, ver.out);
+  }
+  // Radar first, any /local entries, or no HACS entries at all: no warning.
+  for (const resources of [[HACS_RADAR, HACS_HZ, HACS_TH], [{ id: 'l', url: '/local/radar-dash/wall-horizon-card.js' }, HACS_RADAR, HACS_HZ], [], [{ id: 'a', url: '/local/radar-dash/wall-radar-card.js' }, { id: 'b', url: '/local/radar-dash/wall-horizon-card.js' }]]) {
+    const ins = run(['inspect'], { state: { dashboards, resources } });
+    assert.deepEqual(JSON.parse(ins.out).warnings, [], ins.out);
+    const ver = run(['verify', 'wall-tablet'], { state: { dashboards, resources, served: { ...served, ...servedAt('/local/radar-dash/', true) } } });
+    assert.doesNotMatch(ver.out, /WARN/, ver.out);
+  }
+  // The warning changes no exit code: a correct install with a bad order still verifies.
+  const ok = run(['verify', 'wall-tablet'], { state: { dashboards, resources: [HACS_HZ, HACS_RADAR], served } });
+  assert.equal(ok.code, 0, ok.out);
+});
+
+test('V2 inspect lists a wall-thermostat-card resource wherever it is registered', () => {
+  const resources = [{ id: 'x', url: '/local/cards/wall-thermostat-card.js', type: 'module' }, { id: 'y', url: '/local/other/card.js', type: 'module' }];
+  const out = JSON.parse(run(['inspect'], { state: { resources } }).out);
+  assert.deepEqual(out.resources.map((r) => r.url), ['/local/cards/wall-thermostat-card.js']);
+  assert.equal(out.resource_count, 2);
+});

@@ -43,6 +43,30 @@ test('step and range come from the entity; the fallbacks follow the unit', () =>
   assert.equal(fromUnits(72, 1, 0), 72);
 });
 
+test('the step sets the decimals: 0.1, 0.25, 0.5 and 1 each show and send their own precision', () => {
+  assert.deepEqual(thermostatStep({ target_temp_step: 0.25 }, C), { step: 0.25, digits: 2 });
+  assert.deepEqual(thermostatStep({ target_temp_step: 0.1 }, C), { step: 0.1, digits: 1 });
+  assert.deepEqual(thermostatStep({ target_temp_step: 0.5 }, C), { step: 0.5, digits: 1 });
+  assert.deepEqual(thermostatStep({ target_temp_step: 1 }, F), { step: 1, digits: 0 });
+  for (const [step, digits, units, value] of [[0.1, 1, 213, 21.3], [0.25, 2, 85, 21.25], [0.5, 1, 43, 21.5], [1, 0, 72, 72]]) {
+    assert.equal(fromUnits(units, step, digits), value, `step ${step}`);
+    assert.equal(fromUnits(units + 0.4, step, digits), value, `step ${step}: rounds to the step grid`);
+    assert.equal(fromUnits(units - 0.4, step, digits), value, `step ${step}: rounds to the step grid, from below`);
+    assert.deepEqual(thermostatCall('climate.living_room', 'temp', fromUnits(units, step, digits))[2], { temperature: value });
+  }
+  assert.equal(fromUnits(toUnits(21.25, 0.25) + 1, 0.25, 2), 21.5, 'one step up from 21.25');
+  assert.equal(fromUnits(toUnits(21.25, 0.25) - 1, 0.25, 2), 21, 'one step down from 21.25');
+});
+
+test('a °C entity with a 0.25 step: 21.25 is shown as 21.25, and a tap lands on a quarter degree', () => {
+  const v = thermostatView(entity('heat', { min_temp: 7, max_temp: 35, target_temp_step: 0.25, temperature: 21.25, current_temperature: 20.5 }), C);
+  assert.deepEqual([v.step, v.digits, v.range.min, v.range.max], [0.25, 2, 28, 140]);
+  assert.equal(v.status, 'Heating to 21.25° · now 20.5°');
+  assert.deepEqual(v.centre, { text: '21.25°', room: false });
+  const p = dialPoint(dialAngle(toUnits(22.75, v.step), v.range));
+  assert.equal(fromUnits(dialTap(p.x, p.y, v.range), v.step, v.digits), 22.75);
+});
+
 test('a °C entity with a 0.5 step: a tap on the track lands on a half degree', () => {
   const v = thermostatView(entity('heat', { min_temp: 7, max_temp: 35, target_temp_step: 0.5, temperature: 21.5, current_temperature: 20.2 }), C);
   assert.deepEqual([v.step, v.digits, v.range.min, v.range.max], [0.5, 1, 14, 70]);

@@ -14,7 +14,8 @@
 //
 // read-only:
 //   inspect                           version, country, location set or not, HACS, resource_count, radar-dash
-//                                     resources, dashboards, cards found by type
+//                                     resources, dashboards, cards found by type, and warnings (a HACS resource order
+//                                     that the next HACS update would break)
 //   entities [domain ...] [--all-sensors]
 //                                     entity_id, name, device class and unit (never the state) for the domains the
 //                                     cards use (default: weather sensor climate media_player remote switch script
@@ -24,7 +25,8 @@
 //   plan-view <dashboard> <view.json> prints what add-view would do, and whether it would refuse
 //   readback <dashboard> [out.json]   saves the dashboard's config as it is now
 //   verify <dashboard>                exit 0 only if a card is on the dashboard, its resource is registered, and the
-//                                     card file and the files it loads are really served by HA_URL (HTTP 200)
+//                                     card file and the files it loads are really served by HA_URL (HTTP 200).
+//                                     Prints a WARN line, without failing, for the same resource-order problem.
 //
 // WRITES. Each refuses with exit 2, before opening any connection, unless --confirm-write is passed. Pass it only
 // after the human has seen the exact change and said yes.
@@ -60,6 +62,9 @@ const CARDS = {
 };
 const CARD_TYPES = Object.keys(CARDS);
 const RESOURCE = /^\/(hacsfiles|local)\/radar-dash\/(wall-radar-card|wall-horizon-card|wall-thermostat-card)\.js(\?[\w.=&-]*)?$/;
+// HACS 2.x rewrites the FIRST resource whose URL starts with this to the radar card file on every update
+// (repositories/plugin.py, update_dashboard_resources), so the radar entry must come before the other two.
+const HACS_NAMESPACE = '/hacsfiles/radar-dash';
 const ENTITY_DOMAINS = ['weather', 'sensor', 'climate', 'media_player', 'remote', 'switch', 'script', 'automation', 'input_text', 'sun'];
 
 const refuse = (msg) => {
@@ -240,6 +245,14 @@ async function readAfterSave(dashboard, name, undo) {
   }
 }
 
+/** A warning when the next HACS update would overwrite one of the extra card resources, else null. */
+function hacsOrderWarning(resources) {
+  const hacs = resources.filter((r) => String(r.url).startsWith(HACS_NAMESPACE));
+  if (!hacs.length || resourceFile(hacs[0].url).endsWith(`/${CARDS['custom:wall-radar-card'].file}`)) return null;
+  const why = hacs.some((r) => resourceFile(r.url).endsWith(`/${CARDS['custom:wall-radar-card'].file}`)) ? 'is listed before the HACS radar entry' : 'is registered with no HACS radar entry';
+  return `${hacs[0].url} ${why}: every HACS update rewrites the first ${HACS_NAMESPACE}/ resource to wall-radar-card.js, which would replace it. Remove the extra resources and add them again after the radar entry (README, "Resource order")`;
+}
+
 async function main() {
   switch (mode) {
     case 'inspect': {
@@ -250,8 +263,9 @@ async function main() {
         location_set: Number.isFinite(Number(haConfig.latitude)) && Number.isFinite(Number(haConfig.longitude)) && haConfig.latitude !== null,
         country: haConfig.country ?? null,
         hacs_installed: (haConfig.components || []).includes('hacs'),
-        resources: resources.filter((r) => /radar-dash|wall-(radar|horizon)-card/.test(r.url)),
+        resources: resources.filter((r) => /radar-dash|wall-(radar|horizon|thermostat)-card/.test(r.url)),
         resource_count: resources.length,
+        warnings: [hacsOrderWarning(resources)].filter(Boolean),
         dashboards: [],
       };
       for (const d of [{ url_path: null, title: 'Overview (default)', mode: 'storage' }, ...dashboards]) {
@@ -323,6 +337,8 @@ async function main() {
       const cards = CARD_TYPES.flatMap((t) => findCards(config, t).map((h) => `${t} in view ${h.view}`));
       console.log(`resources: ${ours.map((r) => r.url).join(', ') || 'none'}`);
       console.log(`cards: ${cards.join(', ') || 'none'}`);
+      const order = hacsOrderWarning(resources);
+      if (order) console.log(`WARN: ${order}`);
       if (!cards.length) throw new Error('the dashboard holds none of the cards');
       // Each card on the dashboard needs its own resource; Horizon also needs the radar card's.
       const present = CARD_TYPES.filter((t) => findCards(config, t).length);

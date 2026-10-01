@@ -11,8 +11,9 @@ no API keys.
 - **`wall-thermostat-card`** is a thermostat dial for one `climate` entity, for any dashboard. It is the Horizon
   layout's thermostat, as a card of its own. It does not need the radar.
 
-**United States only.** The radar (NEXRAD, MRMS), the forecast (HRRR) and the warnings (NWS) cover the US.
-Elsewhere the basemap draws and the radar stays empty.
+**The radar and Horizon cards are United States only.** Their radar (NEXRAD, MRMS), forecast (HRRR) and warnings
+(NWS) cover the US; elsewhere the basemap draws and the radar stays empty. The thermostat card uses only your own
+climate entity and works anywhere.
 
 ![wall-radar-card: a radar loop over a dark hillshade basemap](screenshots/radar-card.png)
 
@@ -45,11 +46,26 @@ YAML, and writes only when you say yes. [AGENTS.md](AGENTS.md) is the full proce
    ```yaml
    type: custom:wall-radar-card
    ```
-4. Only if you want the Horizon layout: add a second resource by hand under **Settings > Dashboards > three-dot menu
-   > Resources**: URL `/hacsfiles/radar-dash/wall-horizon-card.js`, type **JavaScript module**. HACS registers
-   one file per repository, and that one is the radar card.
-5. Only if you want the thermostat card: add `/hacsfiles/radar-dash/wall-thermostat-card.js` the same way. It
-   works on its own; the radar card's resource is not needed for it.
+4. Only if you want the Horizon layout, and only AFTER the download in step 2: add a second resource by hand under
+   **Settings > Dashboards > three-dot menu > Resources**: URL `/hacsfiles/radar-dash/wall-horizon-card.js`, type
+   **JavaScript module**. HACS registers one file per repository, and that one is the radar card.
+5. Only if you want the thermostat card, also after step 2: add `/hacsfiles/radar-dash/wall-thermostat-card.js`
+   the same way. The card works without the radar, but keep the radar entry HACS made: see Resource order below.
+
+### Resource order (HACS)
+
+On every update, HACS rewrites the FIRST resource whose URL starts with `/hacsfiles/radar-dash/` to point at
+`wall-radar-card.js`. So the radar entry HACS created must come before your Horizon and thermostat entries. If one of
+them is first (you added it before downloading, or deleted the radar entry), the next update silently turns it into
+a second radar entry, and that card stops loading with "Custom element doesn't exist".
+
+To check: **Settings > Dashboards > three-dot menu > Resources** lists the entries in order. Among the
+`/hacsfiles/radar-dash/` ones, `wall-radar-card.js` must be the first. `node tools/lovelace-ws.mjs inspect` reports
+the same thing under `warnings`, and `verify` prints a `WARN:` line.
+
+To fix: delete your Horizon and thermostat entries (and any second `wall-radar-card.js` entry an update already
+made), make sure exactly one `/hacsfiles/radar-dash/wall-radar-card.js` entry remains (redownload radar-dash in
+HACS if none does), then add the other entries again. New entries go to the end of the list, after the radar one.
 
 The card loads Leaflet, its stylesheet, the Horizon library and two fonts from the folder it was loaded from.
 HACS downloads the whole `dist/` folder, so they sit next to it. If the map area stays blank after a HACS install,
@@ -256,8 +272,8 @@ Bundled: Leaflet 1.9.4 (BSD 2-Clause) and the Figtree and Fredoka fonts (SIL Ope
 | "Custom element doesn't exist: wall-radar-card" | The resource is not registered, or the browser has a stale copy. Check Settings > Dashboards > Resources, then hard-reload. |
 | Card area stays empty | Home Assistant has no location set and the card has no `center_latitude`/`center_longitude`. Set either. |
 | Basemap draws, no radar | Outside the US, or no rain: the radar layer is transparent when it is dry. Set `show_status: true` to see whether data is arriving. |
-| Horizon card missing | `wall-horizon-card.js` needs its own resource entry (see install step 4). |
-| Thermostat card missing | `wall-thermostat-card.js` needs its own resource entry (see install step 5). |
+| Horizon card missing | `wall-horizon-card.js` needs its own resource entry (see install step 4). After a HACS update, check the resource order (Install with HACS, Resource order). |
+| Thermostat card missing | `wall-thermostat-card.js` needs its own resource entry (see install step 5). After a HACS update, check the resource order (Install with HACS, Resource order). |
 | Want to see what the card is doing | Inspect the element: `data-status`, `data-mode`, `data-site`, `data-frames` (see docs/options.md). |
 
 ## Development

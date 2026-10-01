@@ -794,16 +794,19 @@ export function climateDue(s) {
 // One climate entity on an ordinary dashboard. The dial above works in whole units, so this card feeds it STEPS
 // instead of degrees: a 0.5° step makes 21.5° unit 43. Range, step and numbers are the entity's own.
 
-/** The setpoint step and the decimals to show: target_temp_step, else 0.5 in °C and 1 otherwise. */
+/** The setpoint step and the decimals to show: target_temp_step, else 0.5 in °C and 1 otherwise. The decimals are
+ * the step's own (0.25 shows 21.25), at most 3. */
 export function thermostatStep(attrs, unit) {
   const s = num(attrs?.target_temp_step);
   const step = s !== null && s > 0 ? s : unit === '°C' ? 0.5 : 1;
-  return { step, digits: Number.isInteger(step) ? 0 : 1 };
+  let digits = 0;
+  while (digits < 3 && Math.abs(step * 10 ** digits - Math.round(step * 10 ** digits)) > 1e-9) digits++;
+  return { step, digits };
 }
 
-/** Degrees to dial units (steps) and back, without float dust. */
+/** Degrees to dial units (steps) and back, without float dust; back lands on the step grid (whole units). */
 export const toUnits = (t, step) => Number((t / step).toFixed(6));
-export const fromUnits = (u, step, digits) => Number((u * step).toFixed(Math.max(digits, 0)));
+export const fromUnits = (u, step, digits) => Number((Math.round(u) * step).toFixed(Math.max(digits, 0)));
 
 /** The dial's range in steps, from min_temp and max_temp; 7-35 °C or 45-95 otherwise when missing or inverted. */
 export function thermostatRange(attrs, unit, step) {

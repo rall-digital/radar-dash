@@ -94,6 +94,7 @@ The tool needs Node 22 or later (`node --version`) and has no dependencies.
 | `hacs_installed` | whether HACS is present |
 | `resource_count` | how many dashboard resources are registered in total. Note it: after you register one it must be exactly one higher, and nothing else may change. |
 | `resources` | radar-dash resources already registered |
+| `warnings` | problems the next HACS update would cause (empty when fine); see step 3 |
 | `dashboards` | every dashboard: its `dashboard` name (the url_path you pass to other commands, `default` for Overview), `mode`, its views, and any of the three cards found on it |
 
 Exit code 2 with `auth_invalid` means the token is wrong; a connection failure means the URL is wrong.
@@ -103,7 +104,8 @@ warnings are US-only data, and outside the US the map will draw with no radar on
 still want it (for example a US location with the country unset). If `country` is `null`, ask where the location is.
 
 Stop and tell the human if `inspect` shows one of the cards is already on a dashboard, or a radar-dash resource
-is already registered. Ask whether they want a second view, or only updated files.
+is already registered. Ask whether they want a second view, or only updated files. If `warnings` is not empty, read
+it to the human and offer the fix under "Resource order" in step 3.
 
 ## Step 2: discover and map
 
@@ -157,12 +159,21 @@ this in the HACS screen, then confirm with `inspect`:
 2. Open radar-dash in HACS and download it.
 
 HACS registers `/hacsfiles/radar-dash/wall-radar-card.js` itself. Horizon and the thermostat card each need one
-more resource. Each is a write, so show it and get a yes first:
+more resource. Register them only AFTER the download, and only once `inspect` lists the HACS radar entry, even for a
+thermostat-only install: see "Resource order" below. Each is a write, so show it and get a yes first:
 
 ```sh
 node tools/lovelace-ws.mjs add-resource /hacsfiles/radar-dash/wall-horizon-card.js --confirm-write      # Horizon
 node tools/lovelace-ws.mjs add-resource /hacsfiles/radar-dash/wall-thermostat-card.js --confirm-write   # thermostat
 ```
+
+**Resource order.** On every update, HACS rewrites the FIRST resource whose URL starts with `/hacsfiles/radar-dash/`
+to the radar card file. The radar entry must therefore come first; a Horizon or thermostat entry before it (or with
+no radar entry at all) is turned into a second radar entry by the next update, and that card stops loading.
+`inspect` reports this under `warnings` and `verify` prints a `WARN:` line. The fix, each step a write with its own
+yes: `remove-resource` each `/hacsfiles/radar-dash/` entry that is not the first radar entry, have the human
+redownload radar-dash in HACS if no radar entry is left, then `add-resource` the extra entries again (new entries go
+to the end of the list). Check with `inspect` that `warnings` is empty. Never remove the HACS radar entry itself.
 
 **B. By hand** (no HACS, or the human prefers it). The files must end up in `/config/www/radar-dash/` on the Home
 Assistant machine, with the `fonts/` folder inside it. You probably cannot reach that filesystem; do not look for
