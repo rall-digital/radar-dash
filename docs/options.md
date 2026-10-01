@@ -1,9 +1,9 @@
 # Options
 
-Every option of both cards: name, type, default, and the entity domain it needs (if any). This file is the
+Every option of the three cards: name, type, default, and the entity domain it needs (if any). This file is the
 reference for a person or a coding agent mapping a Home Assistant setup onto the cards without reading the source.
 
-Rules that hold for both cards:
+Rules that hold for all three cards:
 
 - An option that is left out takes its default. "unset" in the default column means there is no default.
 - No option names a personal entity by default. A feature whose entity is unset is not drawn and does nothing.
@@ -152,3 +152,29 @@ weather_entity: weather.forecast_home
 | `rooms` | up to 3 `climate.*` entities; if more than 3, ask which |
 | `music` | a `media_player.*` the household plays music on; optional |
 | everything under `xbox`, `screen`, `volume`, `select`, `rain_window` | leave unset unless the human asks for it and names the entities |
+
+## wall-thermostat-card
+
+`type: custom:wall-thermostat-card`. One `climate` entity, any dashboard, ordinary card sizes. Needs its own
+resource, `wall-thermostat-card.js`; it loads `wall-horizon-lib.js` from the same folder and does not need the
+radar card.
+
+| option | type | default | entity domain | meaning |
+|---|---|---|---|---|
+| `entity` | entity | required | `climate` | The thermostat. |
+| `name` | string | the entity's friendly name, else the entity ID | none | The card's title. |
+
+What it reads from the entity: `state` (the hvac mode), `temperature`, `target_temp_low` / `target_temp_high`,
+`current_temperature`, `min_temp`, `max_temp`, `target_temp_step`, `hvac_modes`, `fan_mode`, `fan_modes`,
+`friendly_name`; and `hass.config.unit_system.temperature` for the defaults below.
+
+| behaviour | rule |
+|---|---|
+| step | `target_temp_step`; else 0.5 in °C, 1 otherwise |
+| range | `min_temp` to `max_temp`; else 7 to 35 in °C, 45 to 95 otherwise |
+| adjustable | modes `heat`, `cool`, `heat_cool`, `auto`, with a single `temperature` target |
+| not adjustable | `off`, `dry`, `fan_only` (room temperature shown dimmed); unavailable; a `heat_cool` low/high pair (shown read-only) |
+| services | `climate.set_temperature` (`temperature`), `climate.set_hvac_mode`, `climate.set_fan_mode`, on `entity` only |
+| sending | a target is sent about 1 s after the last change; a chip at once; a failure or no confirmation within 10 s puts the old value back and says "<name> didn't respond" |
+
+Installer mapping: one `climate.*` entity found, use it; several, ask which (one card per entity is fine).

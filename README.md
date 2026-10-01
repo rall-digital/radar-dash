@@ -1,6 +1,6 @@
 # radar-dash
 
-A weather-radar wall display for Home Assistant: two Lovelace custom cards, plain JavaScript, no build step,
+A weather-radar wall display for Home Assistant: three Lovelace custom cards, plain JavaScript, no build step,
 no API keys.
 
 - **`wall-radar-card`** loops live NEXRAD radar over a dark or satellite basemap, with a short-range forecast and
@@ -8,6 +8,8 @@ no API keys.
 - **`wall-horizon-card`** is the full-screen wall layout built around it: clock, date, outside temperature, forecast,
   room thermostats and a few household controls. It ships **as-is, adapt it**: it was drawn for one 1280 x 800
   tablet, and every household feature is optional.
+- **`wall-thermostat-card`** is a thermostat dial for one `climate` entity, for any dashboard. It is the Horizon
+  layout's thermostat, as a card of its own. It does not need the radar.
 
 **United States only.** The radar (NEXRAD, MRMS), the forecast (HRRR) and the warnings (NWS) cover the US.
 Elsewhere the basemap draws and the radar stays empty.
@@ -16,7 +18,9 @@ Elsewhere the basemap draws and the radar stays empty.
 
 ![wall-horizon-card: the full-screen wall layout](screenshots/horizon-card.png)
 
-Both screenshots show Oklahoma City with placeholder entities and made-up readings.
+![wall-thermostat-card: a thermostat dial for one climate entity](screenshots/thermostat-card.png)
+
+The screenshots use placeholder entities and made-up readings; the two maps show Oklahoma City.
 
 ## Install with Claude Code
 
@@ -44,6 +48,8 @@ YAML, and writes only when you say yes. [AGENTS.md](AGENTS.md) is the full proce
 4. Only if you want the Horizon layout: add a second resource by hand under **Settings > Dashboards > three-dot menu
    > Resources**: URL `/hacsfiles/radar-dash/wall-horizon-card.js`, type **JavaScript module**. HACS registers
    one file per repository, and that one is the radar card.
+5. Only if you want the thermostat card: add `/hacsfiles/radar-dash/wall-thermostat-card.js` the same way. It
+   works on its own; the radar card's resource is not needed for it.
 
 The card loads Leaflet, its stylesheet, the Horizon library and two fonts from the folder it was loaded from.
 HACS downloads the whole `dist/` folder, so they sit next to it. If the map area stays blank after a HACS install,
@@ -54,7 +60,8 @@ check that `/hacsfiles/radar-dash/leaflet.js` opens in your browser; if it does 
 1. Copy everything in `dist/` (the `fonts/` folder included) to `/config/www/radar-dash/` on your Home Assistant.
 2. **Settings > Dashboards > three-dot menu > Resources > Add resource**: URL
    `/local/radar-dash/wall-radar-card.js`, type **JavaScript module**. For the Horizon layout add
-   `/local/radar-dash/wall-horizon-card.js` the same way.
+   `/local/radar-dash/wall-horizon-card.js` the same way, and for the thermostat card
+   `/local/radar-dash/wall-thermostat-card.js` (on its own, the thermostat card needs only its own line).
 3. Reload the browser, then add the card as above.
 
 When you update the files later, add or change a `?v=2` suffix on the resource URL so browsers fetch the new copy.
@@ -167,6 +174,43 @@ This is a household display that was built for one home and then made configurab
 Full types and defaults: [docs/options.md](docs/options.md). If you want something different, fork it: the card is
 one file of plain JavaScript plus a library of pure functions.
 
+## wall-thermostat-card
+
+```yaml
+type: custom:wall-thermostat-card
+entity: climate.living_room
+```
+
+A thermostat dial for one `climate` entity, sized for an ordinary dashboard column. Drag the handle, tap the
+track, or use the `−` and `+` buttons (or the arrow keys) to set the target; the change is sent about a second after
+you let go. Below the dial are the entity's own hvac modes and, if it has them, its fan modes. The dial, the drag
+rules and the send logic are the same code as the Horizon layout's thermostat sheet.
+
+| option | default | meaning |
+|---|---|---|
+| `entity` | required | One `climate` entity. |
+| `name` | the entity's friendly name | The title on the card. |
+
+It calls only `climate.set_temperature`, `climate.set_hvac_mode` and `climate.set_fan_mode`, only on `entity`,
+and only after you touch the card. [examples/thermostat.yaml](examples/thermostat.yaml) is a starting point.
+
+How it handles what thermostats differ on:
+
+- **Range and step** come from the entity's `min_temp`, `max_temp` and `target_temp_step`. With no step, it uses
+  0.5 when Home Assistant is set to °C and 1 otherwise. Halves are shown as `21.5°`.
+- **Units**: it shows the entity's own numbers with a plain `°`, as Home Assistant reports them, and converts
+  nothing. Only the fallback range for an entity without `min_temp`/`max_temp` (7 to 35 in °C, 45 to 95 otherwise)
+  depends on Home Assistant's unit setting.
+- **Off, Dry and Fan only**: the dial takes no input and shows the room temperature, dimmed. Pick a mode chip to
+  turn it back on.
+- **Heat/Cool with a low and a high target** (dual setpoint): **shown, not adjustable.** The status line reads
+  "Auto 68° to 75°" and the span is drawn on the dial, but the dial has one handle, so the two targets cannot be
+  changed from this card. Use Home Assistant's own thermostat card for that. A heat_cool or auto mode with a
+  single target works normally.
+- **Unavailable** (or the entity does not exist): "Unavailable", no chips, and taps do nothing.
+- Text is English. Mode chips use the entity's own `hvac_modes` order and names; unknown fan modes are shown with
+  their own names.
+
 ## Kiosk tips
 
 - Use a **panel** view so the card fills the screen, and a kiosk browser such as Fully Kiosk Browser, or any
@@ -213,6 +257,7 @@ Bundled: Leaflet 1.9.4 (BSD 2-Clause) and the Figtree and Fredoka fonts (SIL Ope
 | Card area stays empty | Home Assistant has no location set and the card has no `center_latitude`/`center_longitude`. Set either. |
 | Basemap draws, no radar | Outside the US, or no rain: the radar layer is transparent when it is dry. Set `show_status: true` to see whether data is arriving. |
 | Horizon card missing | `wall-horizon-card.js` needs its own resource entry (see install step 4). |
+| Thermostat card missing | `wall-thermostat-card.js` needs its own resource entry (see install step 5). |
 | Want to see what the card is doing | Inspect the element: `data-status`, `data-mode`, `data-site`, `data-frames` (see docs/options.md). |
 
 ## Development

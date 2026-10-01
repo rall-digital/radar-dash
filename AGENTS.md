@@ -3,8 +3,9 @@
 You are a coding agent. A person asked you to install radar-dash on their Home Assistant. You have this
 repository and nothing else. This file is the whole procedure. Follow the steps in order.
 
-radar-dash is two Lovelace custom cards: `custom:wall-radar-card` (a NEXRAD radar loop, US only) and
-`custom:wall-horizon-card` (a full-screen wall layout around it, shipped as-is). The product is the `dist/` folder.
+radar-dash is three Lovelace custom cards: `custom:wall-radar-card` (a NEXRAD radar loop, US only),
+`custom:wall-horizon-card` (a full-screen wall layout around it, shipped as-is) and `custom:wall-thermostat-card`
+(a thermostat dial for one climate entity; it does not need the radar). The product is the `dist/` folder.
 There is no build step and nothing to compile.
 
 ## Rules that hold for the whole install
@@ -29,7 +30,8 @@ even if the card ends up working.
 7. Do not restart Home Assistant, do not edit `configuration.yaml`, and do not install anything else, unless the
    human asks for a feature that needs it and says yes to that specific step.
 
-The radar data covers the United States only. Step 1 checks the country; do not skip that check.
+The radar data covers the United States only. Step 1 checks the country; do not skip that check for an install
+that includes the radar or Horizon. A thermostat-only install does not depend on the country.
 
 Local files: the tool writes backups to `./radar-dash-work/` (created on first use, covered by this repo's
 `.gitignore`). Put the `view.json` you write there too. Those files describe the human's home: do not commit them,
@@ -92,11 +94,11 @@ The tool needs Node 22 or later (`node --version`) and has no dependencies.
 | `hacs_installed` | whether HACS is present |
 | `resource_count` | how many dashboard resources are registered in total. Note it: after you register one it must be exactly one higher, and nothing else may change. |
 | `resources` | radar-dash resources already registered |
-| `dashboards` | every dashboard: its `dashboard` name (the url_path you pass to other commands, `default` for Overview), `mode`, its views, and any of the two cards found on it |
+| `dashboards` | every dashboard: its `dashboard` name (the url_path you pass to other commands, `default` for Overview), `mode`, its views, and any of the three cards found on it |
 
 Exit code 2 with `auth_invalid` means the token is wrong; a connection failure means the URL is wrong.
 
-**Country check.** If `country` is anything other than `US`, stop and tell the human: the radar, forecast and
+**Country check** (radar and Horizon only). If `country` is anything other than `US`, stop and tell the human: the radar, forecast and
 warnings are US-only data, and outside the US the map will draw with no radar on it. Go on only if they say they
 still want it (for example a US location with the country unset). If `country` is `null`, ask where the location is.
 
@@ -113,7 +115,7 @@ Each line is `entity_id`, friendly name, device class and unit. It never prints 
 only temperature sensors: states and other sensors can hold addresses, network names and people's whereabouts,
 which have no business in your transcript. Do not fetch states another way. If the human asks for a sensor that
 is not a temperature sensor, `--all-sensors` lists the rest (still without states). Read [docs/options.md](docs/options.md): it
-lists every option of both cards with its type, default and the entity domain it needs.
+lists every option of the three cards with its type, default and the entity domain it needs.
 
 Decide with the human which install they want:
 
@@ -132,6 +134,10 @@ Decide with the human which install they want:
   Leave `xbox`, `screen`, `volume`, `select` and `rain_window` out. They need switches, automations and scripts
   that this project does not create. Add one only if the human asks for it and names the entities;
   `examples/horizon.yaml` shows the shape.
+- **Thermostat** (a dial for one climate entity; can be installed alone, or next to the radar): pick the entity.
+  One `climate.*` entity listed: use it. Several: ask which (one card per entity is fine if they want several).
+  None: this card cannot be installed; say so. The only other option is `name`; leave it out unless asked.
+  `examples/thermostat.yaml` shows the card. It needs only its own resource, `wall-thermostat-card.js`.
 
 Tell the human what you mapped and what you left out, in a short list, before going on.
 
@@ -150,11 +156,12 @@ this in the HACS screen, then confirm with `inspect`:
 1. HACS > three-dot menu > Custom repositories > add `https://github.com/rall-digital/radar-dash`, type Dashboard.
 2. Open radar-dash in HACS and download it.
 
-HACS registers `/hacsfiles/radar-dash/wall-radar-card.js` itself. For Horizon, a second resource is needed, and
-that is a write, so show it and get a yes first:
+HACS registers `/hacsfiles/radar-dash/wall-radar-card.js` itself. Horizon and the thermostat card each need one
+more resource. Each is a write, so show it and get a yes first:
 
 ```sh
-node tools/lovelace-ws.mjs add-resource /hacsfiles/radar-dash/wall-horizon-card.js --confirm-write
+node tools/lovelace-ws.mjs add-resource /hacsfiles/radar-dash/wall-horizon-card.js --confirm-write      # Horizon
+node tools/lovelace-ws.mjs add-resource /hacsfiles/radar-dash/wall-thermostat-card.js --confirm-write   # thermostat
 ```
 
 **B. By hand** (no HACS, or the human prefers it). The files must end up in `/config/www/radar-dash/` on the Home
@@ -168,10 +175,12 @@ Then register the resources. Each is a write: show it, get a yes, run it.
 ```sh
 node tools/lovelace-ws.mjs add-resource /local/radar-dash/wall-radar-card.js --confirm-write
 node tools/lovelace-ws.mjs add-resource /local/radar-dash/wall-horizon-card.js --confirm-write   # Horizon only
+node tools/lovelace-ws.mjs add-resource /local/radar-dash/wall-thermostat-card.js --confirm-write   # thermostat only
 ```
 
-`add-resource` refuses anything but these two files, and refuses to register a file twice. If Home Assistant
-answers that resources cannot be managed (a YAML-mode setup), stop: tell the human to add the two lines under
+Register only what the install uses: a thermostat-only install needs just the last line, not the radar's.
+`add-resource` refuses anything but these three files, and refuses to register a file twice. If Home Assistant
+answers that resources cannot be managed (a YAML-mode setup), stop: tell the human to add the lines under
 `lovelace: resources:` in their configuration themselves, and continue when they have.
 
 If the files were copied into a brand-new `/config/www/` folder, Home Assistant must be restarted once before
@@ -202,6 +211,14 @@ Below, `<dashboard>` is the name `inspect` printed in each entry's `dashboard` f
      "path": "radar",
      "type": "panel",
      "cards": [{ "type": "custom:wall-radar-card", "height": "100vh", "basemap": "auto" }]
+   }
+   ```
+   Thermostat only (an ordinary view, not a panel, so the card keeps its normal size):
+   ```json
+   {
+     "title": "Climate",
+     "path": "climate",
+     "cards": [{ "type": "custom:wall-thermostat-card", "entity": "climate.<the one you mapped>" }]
    }
    ```
 3. **Back up the dashboard.** This only reads Home Assistant. It prints the path of the file it wrote, named with
@@ -237,7 +254,7 @@ node tools/lovelace-ws.mjs verify <dashboard>
 ```
 
 Exit 0 means: the card is on the dashboard, its resource is registered, and the card file plus the files it loads
-(Leaflet, and for Horizon the library and fonts) are really served by Home Assistant (HTTP 200, fetched without
+(Leaflet for the radar; the library and fonts for Horizon; the library for the thermostat) are really served by Home Assistant (HTTP 200, fetched without
 the token). If it reports a file as not served, the files are not where the resource URL points: fix step 3.
 
 That proves the configuration and the files, not the picture. Ask the human to open the new view and tell you what
@@ -250,6 +267,8 @@ example `http://homeassistant.local:8123/wall-radar/radar`. For the `default` da
 - In the browser's developer tools, the `wall-radar-card` element carries `data-frames` (1 or more once radar
   frames have loaded), `data-mode` (`hybrid`, `site` or `composite`), `data-site` (the radar it picked) and
   `data-status` (empty when healthy; text when something is degraded).
+- The thermostat card shows the entity's name, its target in the middle of the dial and its modes underneath.
+  It sends nothing until someone touches it; do not touch it to test it.
 - "Custom element doesn't exist" means the browser has not loaded the resource: hard-reload the page.
 
 Then tell the human to **reload the page once on the wall device** (the tablet or screen that will show it), so it
@@ -272,7 +291,7 @@ Each of these is a write: show it, get a yes, run it. Use them in this order and
    ```sh
    node tools/lovelace-ws.mjs remove-view <dashboard> radar-dash-work/view.json <fresh backup> --confirm-write
    ```
-2. Unregister a resource you added (the exact URL you registered). It only accepts this project's two card
+2. Unregister a resource you added (the exact URL you registered). It only accepts this project's three card
    files. Resources HACS registered are removed by removing radar-dash in HACS.
    ```sh
    node tools/lovelace-ws.mjs remove-resource /local/radar-dash/wall-radar-card.js --confirm-write
@@ -298,7 +317,7 @@ Each of these is a write: show it, get a yes, run it. Use them in this order and
 | `plan-view <dashboard> <view.json>` | no | what `add-view` would do |
 | `readback <dashboard> [out.json]` | no (local file only) | saves the dashboard config as it is now |
 | `verify <dashboard>` | no | exit 0 if a card and its resource are present and the files are served |
-| `add-resource <url>` | yes | registers one of the two card files |
+| `add-resource <url>` | yes | registers one of the three card files |
 | `create-dashboard <url-path> <title>` | yes | a new, empty dashboard |
 | `add-view <dashboard> <view.json> <backup.json>` | yes | appends one view; needs a current backup; reads back |
 | `remove-view <dashboard> <view.json> <backup.json>` | yes | removes the one view equal to the file; needs a current backup |

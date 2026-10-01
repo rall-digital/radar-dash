@@ -39,7 +39,7 @@
 //   remove-view <dashboard> <view.json> <backup.json>
 //                                     rollback: removes the one view that equals view.json exactly. The view must
 //                                     hold one of this project's cards, and <backup.json> must be a fresh backup.
-//   remove-resource <url>             rollback: unregisters that exact URL; only this project's two card files
+//   remove-resource <url>             rollback: unregisters that exact URL; only this project's card files
 //   restore <dashboard> <backup.json> last resort: puts the whole dashboard back from a backup file, after saving
 //                                     what is there now to radar-dash-work/pre-restore-<dashboard>-<time>.json
 import fs from 'node:fs';
@@ -52,8 +52,14 @@ const [mode, ...args] = argv.filter((a) => a !== '--confirm-write' && a !== '--a
 
 const READS = ['inspect', 'entities', 'backup', 'plan-view', 'readback', 'verify'];
 const WRITES = ['add-resource', 'create-dashboard', 'add-view', 'remove-view', 'remove-resource', 'restore'];
-const CARD_TYPES = ['custom:wall-radar-card', 'custom:wall-horizon-card'];
-const RESOURCE = /^\/(hacsfiles|local)\/radar-dash\/(wall-radar-card|wall-horizon-card)\.js(\?[\w.=&-]*)?$/;
+// The three cards: the file each is registered as, and the files it loads from its own folder.
+const CARDS = {
+  'custom:wall-radar-card': { file: 'wall-radar-card.js', element: 'wall-radar-card', loads: ['leaflet.js', 'leaflet.css'] },
+  'custom:wall-horizon-card': { file: 'wall-horizon-card.js', element: 'wall-horizon-card', loads: ['wall-horizon-lib.js', 'fonts/fredoka-latin-wght-normal.woff2', 'fonts/figtree-latin-wght-normal.woff2'], needs: ['custom:wall-radar-card'] },
+  'custom:wall-thermostat-card': { file: 'wall-thermostat-card.js', element: 'wall-thermostat-card', loads: ['wall-horizon-lib.js'] },
+};
+const CARD_TYPES = Object.keys(CARDS);
+const RESOURCE = /^\/(hacsfiles|local)\/radar-dash\/(wall-radar-card|wall-horizon-card|wall-thermostat-card)\.js(\?[\w.=&-]*)?$/;
 const ENTITY_DOMAINS = ['weather', 'sensor', 'climate', 'media_player', 'remote', 'switch', 'script', 'automation', 'input_text', 'sun'];
 
 const refuse = (msg) => {
@@ -126,11 +132,11 @@ function same(a, b) {
   return ka.length === Object.keys(b).length && ka.every((k) => k in b && same(a[k], b[k]));
 }
 
-/** A view file: one view object holding at least one of the two cards. */
+/** A view file: one view object holding at least one of this project's cards. */
 function checkView(view) {
   if (!view || typeof view !== 'object' || Array.isArray(view)) throw new Error('view.json must hold one view object');
   if ('views' in view) throw new Error('view.json holds a whole dashboard; it must be ONE view (title, path, cards)');
-  if (!CARD_TYPES.some((t) => findCards({ views: [view] }, t).length)) throw new Error(`view.json holds neither ${CARD_TYPES.join(' nor ')}`);
+  if (!CARD_TYPES.some((t) => findCards({ views: [view] }, t).length)) throw new Error(`view.json holds neither of this project's cards (${CARD_TYPES.join(', ')})`);
   return view;
 }
 
@@ -317,32 +323,32 @@ async function main() {
       const cards = CARD_TYPES.flatMap((t) => findCards(config, t).map((h) => `${t} in view ${h.view}`));
       console.log(`resources: ${ours.map((r) => r.url).join(', ') || 'none'}`);
       console.log(`cards: ${cards.join(', ') || 'none'}`);
-      const radar = ours.find((r) => resourceFile(r.url).endsWith('/wall-radar-card.js'));
-      const horizon = ours.find((r) => resourceFile(r.url).endsWith('/wall-horizon-card.js'));
-      if (!radar) throw new Error('wall-radar-card.js is not registered as a resource');
-      if (!cards.length) throw new Error('the dashboard holds neither card');
-      const needsHorizon = findCards(config, CARD_TYPES[1]).length > 0;
-      if (needsHorizon && !horizon) throw new Error('the dashboard holds a wall-horizon-card but wall-horizon-card.js is not registered');
+      if (!cards.length) throw new Error('the dashboard holds none of the cards');
+      // Each card on the dashboard needs its own resource; Horizon also needs the radar card's.
+      const present = CARD_TYPES.filter((t) => findCards(config, t).length);
+      const needed = [...new Set(present.flatMap((t) => [t, ...(CARDS[t].needs || [])]))];
+      const resourceOf = (t) => ours.find((r) => resourceFile(r.url).endsWith(`/${CARDS[t].file}`));
+      for (const t of needed) if (!resourceOf(t)) throw new Error(`${CARDS[t].file} is not registered as a resource (the dashboard holds a ${present.find((p) => p === t || (CARDS[p].needs || []).includes(t)).replace('custom:', '')})`);
       // A registered resource proves nothing about the files: fetch them the way the browser will.
-      const check = async (res, element, siblings) => {
+      for (const t of needed) {
+        const res = resourceOf(t);
+        const { element, loads } = CARDS[t];
         const got = await served(res.url);
         if (got.status !== 200) throw new Error(`${res.url} is registered but not served: HTTP ${got.status}${got.error ? ` (${got.error})` : ''}. Are the files in place?`);
         if (!got.body.includes(`customElements.define('${element}'`)) throw new Error(`${res.url} answers 200 but does not define ${element} (a login page or the wrong file?)`);
         const dir = resourceFile(res.url).replace(/[^/]+$/, '');
-        for (const f of siblings) {
-          const s = await served(`${dir}${f}`);
-          if (s.status !== 200) throw new Error(`${dir}${f} is not served: HTTP ${s.status}. The card loads it from its own folder; copy the whole dist/ folder`);
+        for (const f of loads) {
+          const sib = await served(`${dir}${f}`);
+          if (sib.status !== 200) throw new Error(`${dir}${f} is not served: HTTP ${sib.status}. The card loads it from its own folder; copy the whole dist/ folder`);
         }
-        console.log(`served: ${res.url} and ${siblings.length} file(s) it loads`);
-      };
-      await check(radar, 'wall-radar-card', ['leaflet.js', 'leaflet.css']);
-      if (needsHorizon) await check(horizon, 'wall-horizon-card', ['wall-horizon-lib.js', 'fonts/fredoka-latin-wght-normal.woff2', 'fonts/figtree-latin-wght-normal.woff2']);
+        console.log(`served: ${res.url} and ${loads.length} file(s) it loads`);
+      }
       console.log('verify: ok (configuration and files; open the view to see it render)');
       return;
     }
     case 'add-resource': {
       const url = args[0] || '';
-      if (!RESOURCE.test(url)) throw new Error('add-resource needs /hacsfiles/radar-dash/<card>.js or /local/radar-dash/<card>.js (optionally ?v=...)');
+      if (!RESOURCE.test(url)) throw new Error('add-resource needs /hacsfiles/radar-dash/<card>.js or /local/radar-dash/<card>.js (optionally ?v=...), where <card> is wall-radar-card, wall-horizon-card or wall-thermostat-card');
       const resources = await call({ type: 'lovelace/resources' });
       const dup = resources.find((r) => resourceFile(r.url).split('/').pop() === resourceFile(url).split('/').pop());
       if (dup) throw new Error(`${resourceFile(url).split('/').pop()} is registered already as ${dup.url}; registering it twice is not needed`);

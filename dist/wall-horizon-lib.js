@@ -651,17 +651,20 @@ export function tickPath(range, r0 = DIAL.r - 27, r1 = DIAL.r - 19) {
   return d;
 }
 
+/** A temperature rounded for display: whole degrees by default (digits 0), else to `digits` decimals. */
+const roundTo = (v, digits) => (digits ? Number(v.toFixed(digits)) : Math.round(v));
+
 /**
- * The status line under the dial's number. mode is the climate state; target and current are
+ * The status line under the dial's number; digits (default 0: whole degrees) is the decimals shown and compared. mode is the climate state; target and current are
  * numbers or null. It never claims the unit is running, since nothing reports that. Also: with no
  * current temperature Cool and Heat read "Cool to T°" and "Heat to T°", and with no target "Cool", "Heat" or "Auto".
  */
-export function dialStatus({ mode, target, current, available = true }) {
+export function dialStatus({ mode, target, current, available = true, digits = 0 }) {
   if (!available) return 'Unavailable';
   const c = num(current);
-  const C = c === null ? null : Math.round(c);
+  const C = c === null ? null : roundTo(c, digits);
   const t = num(target);
-  const T = t === null ? null : Math.round(t);
+  const T = t === null ? null : roundTo(t, digits);
   const now = C === null ? '' : ` · now ${C}°`;
   const to = (verb) => (T === null ? `${verb}${now}` : `${verb} to ${T}°${now}`);
   switch (mode) {
@@ -701,11 +704,11 @@ export const chipsFor = (chips, listed) => chips.filter(([v]) => Array.isArray(l
  * it shows the room temperature instead, dimmed (room: true); with no
  * room temperature either, "—". A Heat, Cool or Auto mode still waiting for its target keeps "—".
  */
-export function dialCentre(mode, target, current) {
+export function dialCentre(mode, target, current, digits = 0) {
   const t = num(target);
-  if (t !== null) return { text: tempText(t), room: false };
+  if (t !== null) return { text: `${roundTo(t, digits)}°`, room: false };
   const c = num(current);
-  if (c !== null && ['off', 'dry', 'fan_only'].includes(mode)) return { text: tempText(c), room: true };
+  if (c !== null && ['off', 'dry', 'fan_only'].includes(mode)) return { text: `${roundTo(c, digits)}°`, room: true };
   return { text: '—', room: false };
 }
 
@@ -785,4 +788,79 @@ export function climateDue(s) {
   if (s.down) return null;
   if (s.draft) return s.due;
   return s.pending ? s.pending.until : null;
+}
+
+// ---- standalone thermostat (wall-thermostat-card) -------------------------------------------------
+// One climate entity on an ordinary dashboard. The dial above works in whole units, so this card feeds it STEPS
+// instead of degrees: a 0.5° step makes 21.5° unit 43. Range, step and numbers are the entity's own.
+
+/** The setpoint step and the decimals to show: target_temp_step, else 0.5 in °C and 1 otherwise. */
+export function thermostatStep(attrs, unit) {
+  const s = num(attrs?.target_temp_step);
+  const step = s !== null && s > 0 ? s : unit === '°C' ? 0.5 : 1;
+  return { step, digits: Number.isInteger(step) ? 0 : 1 };
+}
+
+/** Degrees to dial units (steps) and back, without float dust. */
+export const toUnits = (t, step) => Number((t / step).toFixed(6));
+export const fromUnits = (u, step, digits) => Number((u * step).toFixed(Math.max(digits, 0)));
+
+/** The dial's range in steps, from min_temp and max_temp; 7-35 °C or 45-95 otherwise when missing or inverted. */
+export function thermostatRange(attrs, unit, step) {
+  const [dmin, dmax] = unit === '°C' ? [7, 35] : [45, 95];
+  const lo = num(attrs?.min_temp);
+  const hi = num(attrs?.max_temp);
+  const of = (a, b) => ({ min: Math.ceil(toUnits(a, step)), max: Math.floor(toUnits(b, step)) });
+  const r = lo === null || hi === null ? null : of(lo, hi);
+  return r && r.max > r.min ? r : of(dmin, dmax);
+}
+
+const label = (v) => {
+  const t = String(v).replace(/_/g, ' ');
+  return t.charAt(0).toUpperCase() + t.slice(1);
+};
+
+/**
+ * Everything the standalone card shows for one climate state object. unit is hass.config.unit_system.temperature.
+ *   mode: the entity's state;  logicMode: the same, with "auto" treated as heat_cool by the dial logic;
+ *   range: in steps;  target / low / high / current: degrees or null;
+ *   dual: heat_cool with a low and a high target and no single one: shown, not adjustable (the dial has one handle);
+ *   modes / fans: [[value, label]] from the entity's own hvac_modes and fan_modes, empty when unavailable.
+ */
+export function thermostatView(stateObj, unit) {
+  const a = stateObj?.attributes || {};
+  const available = !!stateObj && stateObj.state !== 'unavailable' && stateObj.state !== 'unknown';
+  const mode = stateObj?.state ?? null;
+  const logicMode = mode === 'auto' ? 'heat_cool' : mode;
+  const { step, digits } = thermostatStep(a, unit);
+  const target = available ? num(a.temperature) : null;
+  const low = available ? num(a.target_temp_low) : null;
+  const high = available ? num(a.target_temp_high) : null;
+  const current = available ? num(a.current_temperature) : null;
+  const dual = available && target === null && low !== null && high !== null;
+  const modesListed = available && Array.isArray(a.hvac_modes) ? a.hvac_modes : [];
+  const twoAutos = modesListed.includes('auto') && modesListed.includes('heat_cool');
+  const modeLabels = { ...Object.fromEntries(MODE_CHIPS), auto: 'Auto', ...(twoAutos ? { heat_cool: 'Heat/Cool' } : {}) };
+  const fanLabels = Object.fromEntries(FAN_CHIPS);
+  const now = current === null ? '' : ` · now ${roundTo(current, digits)}°`;
+  return {
+    available, mode, logicMode, step, digits, target, low, high, current, dual,
+    range: thermostatRange(a, unit, step),
+    live: dialLive(logicMode, available, target),
+    color: modeColor(logicMode, available),
+    status: dual ? `Auto ${roundTo(low, digits)}° to ${roundTo(high, digits)}°${now}` : dialStatus({ mode: logicMode, target, current, available, digits }),
+    centre: dual ? (current === null ? { text: '—', room: false } : { text: `${roundTo(current, digits)}°`, room: true }) : dialCentre(logicMode, target, current, digits),
+    modes: modesListed.map((m) => [m, modeLabels[m] ?? label(m)]),
+    fans: (available && Array.isArray(a.fan_modes) ? a.fan_modes : []).map((f) => [f, fanLabels[f] ?? label(f)]),
+  };
+}
+
+const THERMOSTAT_SERVICES = { temp: ['set_temperature', 'temperature'], mode: ['set_hvac_mode', 'hvac_mode'], fan: ['set_fan_mode', 'fan_mode'] };
+
+/** The one service call for a field of the configured entity: [domain, service, data, target] for hass.callService. */
+export function thermostatCall(entity, field, value) {
+  if (typeof entity !== 'string' || !entity.startsWith('climate.')) throw new Error('wall-thermostat-card: not a climate entity');
+  const def = THERMOSTAT_SERVICES[field];
+  if (!def) throw new Error(`wall-thermostat-card: unknown field ${field}`);
+  return ['climate', def[0], { [def[1]]: value }, { entity_id: entity }];
 }

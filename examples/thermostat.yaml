@@ -1,0 +1,9 @@
+# wall-thermostat-card: a thermostat dial for ONE climate entity. Works on any dashboard, at ordinary card sizes.
+# Needs its own resource: wall-thermostat-card.js (it does not need the radar card).
+#
+# climate.living_room is a PLACEHOLDER: replace it with one of your climate entities.
+type: custom:wall-thermostat-card
+entity: climate.living_room
+
+# Optional. Left out, the card shows the entity's own friendly name.
+# name: Living room
