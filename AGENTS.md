@@ -193,7 +193,7 @@ Then register the one resource, with the version as its query string (change it 
 browsers fetch the new files). It is a write: show it, get a yes, run it.
 
 ```sh
-node tools/lovelace-ws.mjs add-resource '/local/radar-dash/wall-radar-card.js?v=1.2.4' --confirm-write
+node tools/lovelace-ws.mjs add-resource '/local/radar-dash/wall-radar-card.js?v=1.2.5' --confirm-write
 ```
 
 This one line serves every install, thermostat-only included. `add-resource` refuses anything but this project's
@@ -312,7 +312,7 @@ Each of these is a write: show it, get a yes, run it. Use them in this order and
 2. Unregister a resource you added (the exact URL you registered). It only accepts this project's three card
    files. Resources HACS registered are removed by removing radar-dash in HACS.
    ```sh
-   node tools/lovelace-ws.mjs remove-resource '/local/radar-dash/wall-radar-card.js?v=1.2.4' --confirm-write
+   node tools/lovelace-ws.mjs remove-resource '/local/radar-dash/wall-radar-card.js?v=1.2.5' --confirm-write
    ```
 3. Last resort, if a readback mismatched or the dashboard looks wrong: put the whole dashboard back from the
    backup taken in step 4. Anything changed on that dashboard after that backup is lost, so say that first. The
