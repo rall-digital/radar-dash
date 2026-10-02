@@ -167,7 +167,7 @@ This is a household display that was built for one home and then made configurab
 - Up to 3 `climate` rooms. Tapping one opens a thermostat sheet (target, mode, fan).
 - A "callout" next to your location says what the radar and forecast mean right now: rain starting or ending, a
   warning over you, or a quiet line about the day.
-- The household controls are specific: a switch drawn as an "Xbox" pill, two projector-screen buttons that each
+- The household controls are specific: a switch drawn as an "Xbox" tile with a round Xbox button (gray off, green on), two projector-screen buttons that each
   trigger an automation, hidden volume taps on the date and the temperature, a hidden "select" tap on the clock,
   and a now-playing pill. Each needs entities, scripts or automations that you provide. They are not created for
   you. [examples/horizon.yaml](examples/horizon.yaml) shows all of them with placeholder entities, and

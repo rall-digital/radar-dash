@@ -116,8 +116,8 @@ resource; it needs no resource of its own. With nothing but `type` it shows the 
 | `sun_entity` | entity | `sun.sun` | `sun` | Day/night icon and the callout's "clear tonight" line. |
 | `rooms` | list of up to 3 `{ entity, icon, name }` | `[]` | `climate` | Room temperatures along the bottom; a tap opens a thermostat sheet (target, mode, fan). `icon` (an `mdi:` name) and `name` are optional. |
 | `music` | entity | unset: no pill | `media_player` | While it is `playing`: a now-playing pill with a pause button, in place of the `xbox`/`screen` controls. |
-| `xbox.switch` | entity | unset: no pill | `switch` | A toggle drawn as an "Xbox" pill. `turn_on`/`turn_off` are called; its state confirms. |
-| `xbox.now_playing` | entity | unset | `sensor` (text state) | Text under the pill while the switch is on. |
+| `xbox.switch` | entity | unset: no pill | `switch` | A toggle drawn as an "Xbox" tile with a round Xbox-logo button: gray when off, green when on. `turn_on`/`turn_off` are called; its state confirms. |
+| `xbox.now_playing` | entity | unset | `sensor` (text state) | Text under "Xbox" while the switch is on. |
 | `screen.down` / `screen.up` | entity | unset: that button is not drawn | `automation` | Each button triggers its automation (`automation.trigger`, conditions skipped). |
 | `screen.seconds` | number > 0 | `45` | none | How long the button's progress bar runs. |
 | `volume.down` / `volume.up` | entity | unset: the tap does nothing | `script` | Hidden taps: the date runs `volume.down`, the temperature runs `volume.up`. |
