@@ -77,7 +77,7 @@ check that `/hacsfiles/radar-dash/leaflet.js` opens in your browser; if it does 
 
 1. Copy everything in `dist/` (the `fonts/` folder included) to `/config/www/radar-dash/` on your Home Assistant.
 2. **Settings > Dashboards > three-dot menu > Resources > Add resource**: URL
-   `/local/radar-dash/wall-radar-card.js?v=1.2.1`, type **JavaScript module**. That one resource loads all three
+   `/local/radar-dash/wall-radar-card.js?v=1.2.2`, type **JavaScript module**. That one resource loads all three
    cards.
 3. Reload the browser, then add the card as above.
 
@@ -167,7 +167,7 @@ This is a household display that was built for one home and then made configurab
 - Up to 3 `climate` rooms. Tapping one opens a thermostat sheet (target, mode, fan).
 - A "callout" next to your location says what the radar and forecast mean right now: rain starting or ending, a
   warning over you, or a quiet line about the day.
-- The household controls are specific: a switch drawn as an "Xbox" tile with a round Xbox button (gray off, green on), two projector-screen buttons that each
+- The household controls are specific: a switch drawn as a round Xbox-logo button (gray off, green on), two projector-screen buttons that each
   trigger an automation, hidden volume taps on the date and the temperature, a hidden "select" tap on the clock,
   and a now-playing pill. Each needs entities, scripts or automations that you provide. They are not created for
   you. [examples/horizon.yaml](examples/horizon.yaml) shows all of them with placeholder entities, and

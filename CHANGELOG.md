@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.2
+
+- Horizon: the Xbox control is now just the round Xbox-logo button (gray off, green on), with no tile, "Xbox" label or
+  status line. `xbox.now_playing` is no longer drawn; it is still read out by screen readers.
+
 ## 1.2.1
 
 - Horizon: the Xbox toggle is now a round button with the Xbox logo, gray when off and green when on (breathing
