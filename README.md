@@ -77,7 +77,7 @@ check that `/hacsfiles/radar-dash/leaflet.js` opens in your browser; if it does 
 
 1. Copy everything in `dist/` (the `fonts/` folder included) to `/config/www/radar-dash/` on your Home Assistant.
 2. **Settings > Dashboards > three-dot menu > Resources > Add resource**: URL
-   `/local/radar-dash/wall-radar-card.js?v=1.2.0`, type **JavaScript module**. That one resource loads all three
+   `/local/radar-dash/wall-radar-card.js?v=1.2.1`, type **JavaScript module**. That one resource loads all three
    cards.
 3. Reload the browser, then add the card as above.
 

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.2.1
 
 - Horizon: the Xbox toggle is now a round button with the Xbox logo, gray when off and green when on (breathing
   while it starts or stops), in place of the leading icon and the sliding switch. The whole tile still taps.
