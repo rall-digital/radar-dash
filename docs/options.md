@@ -118,7 +118,7 @@ resource; it needs no resource of its own. With nothing but `type` it shows the 
 | `music` | entity | unset: no pill | `media_player` | While it is `playing`: a now-playing pill with a pause button, in place of the `xbox`/`screen` controls. |
 | `xbox.switch` | entity | unset: no button | `switch` | A toggle drawn as a round Xbox-logo button, with no label or status text: gray when off, green when on. `turn_on`/`turn_off` are called; its state confirms. |
 | `xbox.now_playing` | entity | unset | `sensor` (text state) | Read out by screen readers while the switch is on; not drawn. |
-| `screen.down` / `screen.up` | entity | unset: that button is not drawn | `automation` | Each button triggers its automation (`automation.trigger`, conditions skipped). |
+| `screen.down` / `screen.up` | entity | unset: that button is not drawn | `automation` | Each is an arrow-only button (up, then down) beside a two-line "Projector Screen" label; it triggers its automation (`automation.trigger`, conditions skipped). |
 | `screen.seconds` | number > 0 | `45` | none | How long the button's progress bar runs. |
 | `volume.down` / `volume.up` | entity | unset: the tap does nothing | `script` | Hidden taps: the date runs `volume.down`, the temperature runs `volume.up`. |
 | `volume.targets` | list of entities, any length | `[]` | `media_player` | Whose `volume_level` the toast reads: the first target that is `on`, else the last. Empty: the toast says only "Volume up/down". |
