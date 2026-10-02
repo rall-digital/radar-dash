@@ -194,17 +194,12 @@ const BOTTOM_CSS = `
 
 const THEATER_CSS = `
   .theater { left: 904px; top: 612px; width: 340px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .xbox { grid-column: 1 / -1; display: flex; align-items: center; height: 84px; gap: 14px; padding: 0 18px; border-radius: 20px;
-    background: rgb(255 255 255 / .08); border: 1px solid rgb(255 255 255 / .13); }
-  .xbox .xl { min-width: 0; flex: 1 1 auto; }
-  .xbox .xl b { display: block; font-family: ${DF}; font-weight: 650; font-size: 28px; line-height: 1; }
-  .xbox .xl span { display: block; margin-top: 5px; font: 500 15px/1.1 ${TF}; color: #aebbd1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .xbox .orb { flex: none; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    background: #4a5262; color: #c3cad6; box-shadow: inset 0 0 0 1px rgb(255 255 255 / .14); }
-  .xbox .orb ha-icon { font-size: 36px; }
-  .xbox[data-s="on"] .orb { background: #107c10; color: #fff; box-shadow: inset 0 0 0 1px rgb(255 255 255 / .2), 0 0 18px rgb(16 124 16 / .55); }
-  .xbox[data-s="starting"] .orb, .xbox[data-s="stopping"] .orb { animation: breathe .9s ease-in-out infinite alternate; }
-  .xbox[data-s="starting"] .orb { background: #107c10; color: #fff; }
+  .xbox { grid-column: 1 / -1; justify-self: end; width: 84px; height: 84px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: #4a5262; color: #c3cad6; border: 1px solid rgb(255 255 255 / .14); }
+  .xbox ha-icon { font-size: 48px; }
+  .xbox[data-s="on"] { background: #107c10; color: #fff; border-color: rgb(255 255 255 / .2); box-shadow: 0 0 22px rgb(16 124 16 / .55); }
+  .xbox[data-s="starting"], .xbox[data-s="stopping"] { animation: breathe .9s ease-in-out infinite alternate; }
+  .xbox[data-s="starting"] { background: #107c10; color: #fff; }
   .xbox:disabled { opacity: .45; }
   @keyframes breathe { from { opacity: 1; } to { opacity: .3; } }
   .scr { position: relative; overflow: hidden; height: 58px; display: flex; align-items: center; justify-content: center; gap: 8px;
@@ -241,7 +236,7 @@ const CALLOUT_CSS = `
   #root.drifting .drift { animation: drift 80s ease-in-out infinite alternate; will-change: transform; }
   @keyframes drift { from { transform: none; } to { transform: translate(calc(-70px * var(--s, 1)), calc(-26px * var(--s, 1))) scale(1.06); } }
   @media (prefers-reduced-motion: reduce) {
-    #root .drift, .home::after, .xbox .orb { animation: none !important; }
+    #root .drift, .home::after, .xbox { animation: none !important; }
   }
 `;
 
@@ -767,7 +762,7 @@ class WallHorizonCard extends HTMLElement {
       const style = running ? ` style="--dur:${c.screen.seconds}s;--dl:-${((now - this._screen.t0) / 1000).toFixed(2)}s"` : '';
       return `<button type="button" class="scr" data-act="screen" data-dir="${dir}"${other ? ' disabled' : ''}${running ? ' data-run aria-disabled="true"' : ''}${style}>${icon(dir === 'down' ? 'mdi:arrow-down' : 'mdi:arrow-up')}<span>${screenLabel(dir, running)}</span><span class="bar"></span></button>`;
     };
-    const xbox = c.xbox.switch ? `<button type="button" class="xbox" data-act="xbox" data-s="${v.phase}" aria-pressed="${v.pressed}"${v.disabled ? ' disabled' : ''} aria-label="Xbox, ${esc(v.sub)}"><span class="xl"><b>Xbox</b><span>${esc(v.sub)}</span></span><span class="orb">${icon('mdi:microsoft-xbox')}</span></button>` : '';
+    const xbox = c.xbox.switch ? `<button type="button" class="xbox" data-act="xbox" data-s="${v.phase}" aria-pressed="${v.pressed}"${v.disabled ? ' disabled' : ''} aria-label="Xbox, ${esc(v.sub)}">${icon('mdi:microsoft-xbox')}</button>` : '';
     setHTML(this._el.theater, `${xbox}${scr('down')}${scr('up')}`);
   }
 
