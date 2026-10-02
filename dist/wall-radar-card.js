@@ -2030,15 +2030,20 @@ class WallRadarCard extends (globalThis.HTMLElement ?? class {}) {
 const SIBLINGS = [['wall-horizon-card', 'WallHorizonCard'], ['wall-thermostat-card', 'WallThermostatCard']];
 let siblingsLoaded;
 
-// A second copy (e.g. the resource listed under two ?v= values) must not throw.
-if (globalThis.customElements && !customElements.get('wall-radar-card')) {
-  customElements.define('wall-radar-card', WallRadarCard);
-  window.customCards = window.customCards || [];
-  window.customCards.push({
-    type: 'wall-radar-card',
-    name: 'Wall Radar Card',
-    description: 'NEXRAD radar loop (IEM): super-res site radar + MRMS, HRRR forecast, NWS warnings.',
-  });
+if (globalThis.customElements) {
+  // A second copy (e.g. the resource listed under two ?v= values) must not throw.
+  if (!customElements.get('wall-radar-card')) {
+    customElements.define('wall-radar-card', WallRadarCard);
+    window.customCards = window.customCards || [];
+    window.customCards.push({
+      type: 'wall-radar-card',
+      name: 'Wall Radar Card',
+      description: 'NEXRAD radar loop (IEM): super-res site radar + MRMS, HRRR forecast, NWS warnings.',
+    });
+  }
+  // The siblings load even when another copy defined the radar card first: that copy may be a cached 1.1.x one
+  // (a second radar entry left by the upgrade), which loads nothing. Their defines are guarded, so a second load
+  // only costs a request.
   siblingsLoaded = Promise.allSettled(SIBLINGS.map(([tag]) => import(new URL(`${tag}.js${VERSION}`, BASE).href))).then((results) => {
     const failed = results.flatMap((r, i) => (r.status === 'rejected' ? [`${SIBLINGS[i][0]}.js (${r.reason?.message ?? r.reason})`] : []));
     if (failed.length) console.warn(`wall-radar-card: could not load ${failed.join(', ')}; the radar card works without them`);
@@ -2047,7 +2052,8 @@ if (globalThis.customElements && !customElements.get('wall-radar-card')) {
       const [tag, name] = SIBLINGS[i];
       return r.status === 'fulfilled' && r.value[name] && customElements.get(tag) !== r.value[name] ? [tag] : [];
     });
-    if (other.length) console.warn(`wall-radar-card: ${other.join(' and ')} came from another resource entry, which may be an old copy. Since radar-dash 1.2.0 this file loads every card: remove the extra ${other.map((t) => `${t}.js`).join(' and ')} resource entry`);
+    if (customElements.get('wall-radar-card') !== WallRadarCard) console.warn('wall-radar-card: wall-radar-card came from another resource entry, which may be an old copy. Keep one wall-radar-card.js resource entry (with HACS, the first one) and delete the other');
+    else if (other.length) console.warn(`wall-radar-card: ${other.join(' and ')} came from another resource entry, which may be an old copy. Since radar-dash 1.2.0 this file loads every card: remove the extra ${other.map((t) => `${t}.js`).join(' and ')} resource entry`);
   });
 }
 

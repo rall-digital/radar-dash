@@ -11,6 +11,9 @@
 - Upgrading from 1.1.x: remove the `wall-horizon-card.js` and `wall-thermostat-card.js` resource entries; keep the
   `wall-radar-card.js` one. While a leftover entry exists, an old copy of a card can load first; the radar card then
   names it in the browser console. README, "Upgrading from 1.1.x".
+- The upgrade can leave two `wall-radar-card.js` entries (HACS rewrites a 1.1.x extra entry listed above the radar
+  one into a second radar entry). The cards still load all three even if the old entry's cached copy defines the
+  radar card first; README and `AGENTS.md` say to delete the later entry, and `inspect` and `verify` name it.
 - `tools/lovelace-ws.mjs`: `inspect` and `verify` warn about each leftover entry (they remove nothing); `verify`
   accepts the radar resource alone for any of the three cards and fetches the files with that resource's query;
   `add-resource` refuses the other two cards once the radar file is registered.

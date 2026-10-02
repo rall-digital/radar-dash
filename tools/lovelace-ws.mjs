@@ -260,6 +260,20 @@ function redundantWarnings(resources) {
   return resources.filter((r) => RESOURCE.test(r.url) && !isRadarResource(r)).map((r) => `${r.url} is no longer needed: since radar-dash 1.2.0 the wall-radar-card.js entry loads every card with its own version, and this extra entry can load an old copy. Remove it (remove-resource ${r.url}); never the radar entry`);
 }
 
+/**
+ * More than one wall-radar-card.js entry: the 1.2.0 HACS download rewrites a 1.1.x extra entry listed above the radar
+ * entry into a second radar entry, and the old one can load a cached 1.1.x copy. Keep the HACS one (the first
+ * /hacsfiles/ entry, which HACS keeps rewriting), else the first; one warning per other entry.
+ */
+function duplicateRadarWarnings(resources) {
+  const radars = resources.filter(isRadarResource);
+  if (radars.length < 2) return [];
+  const keep = radars.find((r) => String(r.url).startsWith(HACS_NAMESPACE)) ?? radars[0];
+  return radars.filter((r) => r !== keep).map((r) => (r.url === keep.url
+    ? `${r.url} is listed twice (the same URL): delete the later entry under Settings > Dashboards > Resources (remove-resource refuses two entries with the same URL), and keep the first`
+    : `${r.url} is a second wall-radar-card.js entry (upgrading from 1.1.x can leave one): keep ${keep.url} and delete this one (remove-resource ${r.url})`));
+}
+
 /** A warning when the next HACS update would overwrite one of the extra card resources, else null. */
 function hacsOrderWarning(resources) {
   const hacs = resources.filter((r) => String(r.url).startsWith(HACS_NAMESPACE));
@@ -280,7 +294,7 @@ async function main() {
         hacs_installed: (haConfig.components || []).includes('hacs'),
         resources: resources.filter((r) => /radar-dash|wall-(radar|horizon|thermostat)-card/.test(r.url)),
         resource_count: resources.length,
-        warnings: [hacsOrderWarning(resources), ...redundantWarnings(resources)].filter(Boolean),
+        warnings: [hacsOrderWarning(resources), ...duplicateRadarWarnings(resources), ...redundantWarnings(resources)].filter(Boolean),
         dashboards: [],
       };
       for (const d of [{ url_path: null, title: 'Overview (default)', mode: 'storage' }, ...dashboards]) {
@@ -352,7 +366,7 @@ async function main() {
       const cards = CARD_TYPES.flatMap((t) => findCards(config, t).map((h) => `${t} in view ${h.view}`));
       console.log(`resources: ${ours.map((r) => r.url).join(', ') || 'none'}`);
       console.log(`cards: ${cards.join(', ') || 'none'}`);
-      for (const w of [hacsOrderWarning(resources), ...redundantWarnings(resources)].filter(Boolean)) console.log(`WARN: ${w}`);
+      for (const w of [hacsOrderWarning(resources), ...duplicateRadarWarnings(resources), ...redundantWarnings(resources)].filter(Boolean)) console.log(`WARN: ${w}`);
       if (!cards.length) throw new Error('the dashboard holds none of the cards');
       // Each card on the dashboard needs its own resource, or the radar card's (which loads it from its own folder,
       // with its own query); Horizon also needs the radar card's.

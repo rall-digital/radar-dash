@@ -63,6 +63,12 @@ one. They also trip HACS, which on every update rewrites the FIRST resource whos
 `/hacsfiles/radar-dash` to the radar card. `node tools/lovelace-ws.mjs inspect` lists any that are left under
 `warnings`, `verify` prints a `WARN:` line for each, and the browser console names one that loaded first.
 
+Then check for a second radar entry. If a 1.1.x extra entry was listed above the radar one, the 1.2.0 download
+turned it into another `/hacsfiles/radar-dash/wall-radar-card.js?hacstag=...` entry. You recognise it in the
+Resources list as two `wall-radar-card.js` lines with different `?hacstag=` numbers (or the same one twice). Keep the
+first and delete the later one: the first is the one HACS updates, and the later one can load an old copy. The cards
+work meanwhile, but a screen may keep old code until you do. `inspect` and `verify` name the entry to delete.
+
 The card loads Leaflet, its stylesheet, the Horizon library and two fonts from the folder it was loaded from.
 HACS downloads the whole `dist/` folder, so they sit next to it. If the map area stays blank after a HACS install,
 check that `/hacsfiles/radar-dash/leaflet.js` opens in your browser; if it does not, use the manual install below.

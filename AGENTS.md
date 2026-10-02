@@ -172,10 +172,16 @@ browser can keep an old copy of a card for weeks and load it before the current 
 resource whose URL starts with `/hacsfiles/radar-dash` to the radar card on every update. `inspect` lists each
 leftover under `warnings` and `verify` prints a `WARN:` line for each. The fix: `remove-resource` each
 `wall-horizon-card.js` and `wall-thermostat-card.js` entry, each a write with its own yes, using the exact URL the
-warning names. Never remove the `wall-radar-card.js` entry. If no radar entry is left at all, have the human
-redownload radar-dash in HACS. If two entries have the SAME radar URL, `remove-resource` refuses (`found 2`): ask the
-human to delete the later of the two under Settings > Dashboards > three-dot menu > Resources. Then run `inspect`
-(`warnings` must be empty) and `verify` again, and have the human reload the page on each screen.
+warning names. Never remove the HACS-managed `wall-radar-card.js` entry (the first one). If no radar entry is left
+at all, have the human redownload radar-dash in HACS.
+
+After the upgrade there can also be TWO `wall-radar-card.js` entries: the 1.2.0 download rewrites a 1.1.x extra
+entry that was listed above the radar entry into a second one, with a different `?hacstag=`. `inspect` names it
+under `warnings` ("is a second wall-radar-card.js entry", with the URL to keep and the one to delete). Remove the
+later one with `remove-resource` and its exact URL (a write with its own yes); keep the first, which HACS keeps
+updating. If the two have the SAME URL, `remove-resource` refuses (`found 2`): ask the human to delete the later of
+the two under Settings > Dashboards > three-dot menu > Resources. Then run `inspect` (`warnings` must be empty) and
+`verify` again, and have the human reload the page on each screen.
 
 **B. By hand** (no HACS, or the human prefers it). The files must end up in `/config/www/radar-dash/` on the Home
 Assistant machine, with the `fonts/` folder inside it. You probably cannot reach that filesystem; do not look for

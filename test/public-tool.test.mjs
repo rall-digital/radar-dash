@@ -536,3 +536,32 @@ test('V6 add-resource refuses an extra card entry when a radar entry exists; alo
     assert.equal(run(['add-resource', extra, '--confirm-write']).code, 0, 'no radar entry: a standalone card is allowed');
   }
 });
+
+test('V7 two wall-radar-card.js entries (the 1.2.0 download rewrote a 1.1.x extra entry above the radar one): warn, name the later one to delete, remove nothing', () => {
+  const NEW = { id: 'n', url: '/hacsfiles/radar-dash/wall-radar-card.js?hacstag=12020', type: 'module' };
+  const OLD = { id: 'o', url: '/hacsfiles/radar-dash/wall-radar-card.js?hacstag=11110', type: 'module' };
+  const dashboards = { default: null, 'wall-tablet': { views: [HZ_VIEW] } };
+  const ins = run(['inspect'], { state: { dashboards, resources: [NEW, OLD] } });
+  assert.equal(ins.code, 0, ins.out);
+  const w = JSON.parse(ins.out).warnings;
+  assert.equal(w.length, 1, ins.out);
+  assert.match(w[0], /hacstag=11110 is a second wall-radar-card\.js entry/);
+  assert.match(w[0], /keep \/hacsfiles\/radar-dash\/wall-radar-card\.js\?hacstag=12020/);
+  assert.match(w[0], /remove-resource \/hacsfiles\/radar-dash\/wall-radar-card\.js\?hacstag=11110/);
+  const ver = run(['verify', 'wall-tablet'], { state: { dashboards, resources: [NEW, OLD], served: SERVED_HZ_TH } });
+  assert.equal(ver.code, 0, ver.out);
+  assert.match(ver.out, /^WARN: .*hacstag=11110 is a second wall-radar-card\.js entry/m);
+  for (const r of [ins, ver]) {
+    assert.deepEqual(r.saves, []);
+    assert.equal(r.sends.some((m) => /resources\/(delete|update|create)/.test(m)), false, 'reads only');
+  }
+  // The HACS entry is the one to keep even when a /local copy is listed first; identical URLs are named too.
+  const LOCAL = { id: 'l', url: '/local/radar-dash/wall-radar-card.js?v=1.1.1', type: 'module' };
+  const mixed = JSON.parse(run(['inspect'], { state: { resources: [LOCAL, NEW] } }).out).warnings;
+  assert.equal(mixed.length, 1, JSON.stringify(mixed));
+  assert.match(mixed[0], /^\/local\/radar-dash\/wall-radar-card\.js\?v=1\.1\.1 is a second/);
+  const same = JSON.parse(run(['inspect'], { state: { resources: [NEW, { ...NEW, id: 'n2' }] } }).out).warnings;
+  assert.equal(same.length, 1, JSON.stringify(same));
+  assert.match(same[0], /same URL/);
+  assert.deepEqual(JSON.parse(run(['inspect'], { state: { resources: [NEW] } }).out).warnings, [], 'one radar entry: fine');
+});

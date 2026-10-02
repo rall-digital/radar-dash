@@ -94,11 +94,17 @@ test('S4 a card already defined by another resource entry (an old extra entry) i
   assert.doesNotMatch(r.warnings[0], /wall-thermostat-card/);
 });
 
-test('S5 a second copy of the radar card (already defined) loads nothing more and says nothing', () => {
+test('S5 radar already defined by another copy (a cached 1.1.x entry with no loader): the siblings still load, and the console names it', () => {
+  // A 1.1.x extra entry above the radar entry is rewritten by the 1.2.0 HACS download into a second radar entry with
+  // the new ?hacstag=, while the old entry keeps the old one. If the old copy defines first, this copy must still load
+  // the other two cards, or nothing would.
   const r = load('?hacstag=3', { before: "customElements.define('wall-radar-card', class Other {});" });
-  assert.deepEqual(r.loaded, []);
+  assert.deepEqual(r.loaded.sort(), ['wall-horizon-card.js?hacstag=3', 'wall-thermostat-card.js?hacstag=3']);
+  assert.deepEqual(r.defined, ['wall-horizon-card', 'wall-radar-card', 'wall-thermostat-card']);
   assert.equal(r.radarIsOurs, false);
-  assert.deepEqual(r.warnings, []);
+  assert.equal(r.warnings.length, 1, JSON.stringify(r.warnings));
+  assert.match(r.warnings[0], /wall-radar-card came from another resource entry/);
+  assert.doesNotMatch(r.warnings[0], /wall-(horizon|thermostat)-card/);
 });
 
 test('S6 with no DOM (Node importing the helpers) nothing else is loaded', async () => {
