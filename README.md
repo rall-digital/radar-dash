@@ -77,7 +77,7 @@ check that `/hacsfiles/radar-dash/leaflet.js` opens in your browser; if it does 
 
 1. Copy everything in `dist/` (the `fonts/` folder included) to `/config/www/radar-dash/` on your Home Assistant.
 2. **Settings > Dashboards > three-dot menu > Resources > Add resource**: URL
-   `/local/radar-dash/wall-radar-card.js?v=1.2.3`, type **JavaScript module**. That one resource loads all three
+   `/local/radar-dash/wall-radar-card.js?v=1.2.4`, type **JavaScript module**. That one resource loads all three
    cards.
 3. Reload the browser, then add the card as above.
 
@@ -183,6 +183,7 @@ This is a household display that was built for one home and then made configurab
 | `music` | unset | `media_player` | Now-playing pill. |
 | `show_attribution` | `true` | | The credit line along the bottom edge. |
 | `show_callout` | `false` | | The weather bubble beside your location. |
+| `show_condition` | `false` | | The current condition (icon and words), top right. |
 | `show_high_low` | `false` | | Today's high and low after the condition, top right. |
 | `xbox` | unset | `switch` (+ optional `sensor`) | The scene toggle. |
 | `screen` | unset | two `automation`s | Up / down arrow buttons beside a "Projector Screen" label. |

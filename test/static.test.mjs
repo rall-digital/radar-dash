@@ -43,6 +43,11 @@ test('the weather bubble is off by default, and show_callout: true brings it bac
   assert.match(src, /classList\.toggle\('nocall', this\._config\.show_callout !== true\)/);
 });
 
+test('the current condition is off by default, and show_condition: true brings it back', () => {
+  assert.match(src, /^\s*show_condition: false,$/m);
+  assert.match(src, /const label = c\.show_condition === true \? conditionLabel\(w\?\.state\) : '';/);
+});
+
 test('today\'s high and low are off by default, and show_high_low: true brings them back', () => {
   assert.match(src, /^\s*show_high_low: false,$/m);
   assert.match(src, /const today = c\.show_high_low === true && /);

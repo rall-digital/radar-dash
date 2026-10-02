@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.4
+
+- Horizon: the current condition (top right) is off by default; `show_condition: true` brings it back.
+- Horizon: room names are larger (18px, from 14px) and split onto two lines at the space nearest the middle
+  ("Great Room" reads Great / Room), filling the space under the room temperatures.
+
 ## 1.2.3
 
 - Horizon: the weather bubble beside your location is off by default. `show_callout: true` brings it back; the

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import {
   num, toDate, hhmm, dateLine, weekdayShort, localDay, tempText, conditionLabel, conditionIcon,
   tcol, fcScale, scalePct, popText, forecastRows, overnightLow, designFit, homePoint, calloutGeometry,
-  fontMetrics, fitClock, fitNumber, radarConfig, radarFallback, esc, strongScrim,
+  fontMetrics, fitClock, fitNumber, radarConfig, radarFallback, esc, strongScrim, twoLines,
 } from '../dist/wall-horizon-lib.js';
 
 process.env.TZ = 'America/New_York';
@@ -203,4 +203,12 @@ test('localDay and forecastRows hold across the fall-back change (2026-11-01)', 
 test('strongScrim: only while the radar card shows the satellite basemap', () => {
   assert.equal(strongScrim({ basemap: 'satellite' }), true);
   for (const ds of [{ basemap: 'ink' }, { basemap: 'night' }, { basemap: 'hillshade_dark_coast' }, {}, null, undefined]) assert.equal(strongScrim(ds), false, JSON.stringify(ds));
+});
+
+test('twoLines splits a room name at the space nearest the middle', () => {
+  assert.deepEqual(twoLines('Great Room'), ['Great', 'Room']);
+  assert.deepEqual(twoLines('Suites'), ['Suites']);
+  assert.deepEqual(twoLines('  Primary   Bed Room '), ['Primary', 'Bed Room']);
+  assert.deepEqual(twoLines('Kids Bonus Room'), ['Kids Bonus', 'Room']);
+  assert.deepEqual(twoLines('climate.den'), ['climate.den']);
 });
