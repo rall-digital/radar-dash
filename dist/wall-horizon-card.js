@@ -200,7 +200,7 @@ const BOTTOM_CSS = `
 
 const THEATER_CSS = `
   .theater { left: 904px; top: 612px; width: 340px; display: grid; grid-template-columns: auto 1fr 1fr; gap: 10px; }
-  .xbox { grid-column: 1 / -1; justify-self: end; position: relative; width: 96px; height: 84px; padding: 0; border: 0; background: none;
+  .xbox { grid-column: 3; justify-self: center; position: relative; width: 96px; height: 84px; padding: 0; border: 0; background: none;
     --x-edge: #8e97a8; --x-fill: rgb(70 78 94 / .55); --x-halo: 0; --x-floor: 0; }
   .xbox svg { position: relative; display: block; width: 84px; height: 84px; margin: 0 auto; overflow: visible; }
   .xbox .halo { fill: none; stroke: var(--x-edge); stroke-width: 1.5; stroke-linejoin: round; opacity: var(--x-halo); }

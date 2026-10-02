@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.5
+
+- Horizon: the Xbox button sits centered over the projector screen's down arrow, instead of against the right edge.
+
 ## 1.2.4
 
 - Horizon: the current condition (top right) is off by default; `show_condition: true` brings it back.
