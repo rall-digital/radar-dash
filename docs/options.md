@@ -112,7 +112,7 @@ resource; it needs no resource of its own. With nothing but `type` it shows the 
 | `height` | CSS length | `100vh` | none | Card height. |
 | `radar` | mapping | `{}` | none | Options passed to the embedded `wall-radar-card` (any of them except `height`, `show_color_bar`, `show_progress`, which the layout sets, and `show_attribution`, which here controls Horizon's own credit line). `radar.echo_dbz` is also the rain threshold for the callout. |
 | `temperature_entity` | entity | unset: no temperature shown | `sensor` (numeric state) | The large outside temperature, top right. |
-| `weather_entity` | entity | unset: no condition line, no forecast rows | `weather` (must support daily and hourly forecasts) | Condition, today's high/low, a 4-day forecast, and input to the callout. |
+| `weather_entity` | entity | unset: no condition line, no forecast rows | `weather` (must support daily and hourly forecasts) | Condition, today's high/low (with `show_high_low`), a 4-day forecast, and input to the callout. |
 | `sun_entity` | entity | `sun.sun` | `sun` | Day/night icon and the callout's "clear tonight" line. |
 | `rooms` | list of up to 3 `{ entity, icon, name }` | `[]` | `climate` | Room temperatures along the bottom; a tap opens a thermostat sheet (target, mode, fan). `icon` (an `mdi:` name) and `name` are optional. |
 | `music` | entity | unset: no pill | `media_player` | While it is `playing`: a now-playing pill with a pause button, in place of the `xbox`/`screen` controls. |
@@ -128,6 +128,8 @@ resource; it needs no resource of its own. With nothing but `type` it shows the 
 | `select.num_repeats` / `select.delay_secs` | number | `1` / `0.4` | none | Passed to `remote.send_command`. |
 | `select.label` | string | `Apple TV` | none | Device name in the toast. |
 | `rain_window` | entity | unset: the callout uses the hourly forecast instead | `input_text` | A helper you fill from your own automation with `phase\|start\|end\|misses`: phase is `none`, `soon` or `raining`; start and end are ISO times; the fourth field is ignored by the card. Nothing in this project writes it. Most installs leave it unset. |
+| `show_callout` | boolean | `false` | none | The weather bubble beside the home dot (with its lead line). Off by default. The callout is still worked out while hidden, because calm mode uses it. |
+| `show_high_low` | boolean | `false` | none | Today's high and low (↑ / ↓) after the current condition, top right. Off by default; the 4-day forecast still shows them. |
 | `callout.heavy_dbz` / `callout.moderate_dbz` | number | `45` / `30` | none | Radar thresholds for "heavy" and "moderate" in the callout. |
 | `callout.hourly_pop` / `callout.daily_pop` | number (percent) | `60` / `50` | none | Forecast rain-chance thresholds for the callout. |
 | `show_attribution` | boolean | `true` | none | The data-source credit line along the bottom edge (the embedded map's own credit would sit under the layout's shade, so Horizon draws it). `false` here, or `show_attribution: false` inside `radar:`, turns it off; then credit the providers elsewhere on the display. |

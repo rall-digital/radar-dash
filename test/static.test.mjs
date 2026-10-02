@@ -36,3 +36,14 @@ test('the pending ring and the pending chip hold still under prefers-reduced-mot
   assert.match(blocks, /\.d-ring\.sending[^{]*\{\s*animation: none/);
   assert.match(blocks, /\.chip\[data-pending\]::after[^{]*\{\s*animation: none/);
 });
+
+test('the weather bubble is off by default, and show_callout: true brings it back', () => {
+  assert.match(src, /^\s*show_callout: false,$/m);
+  assert.match(src, /#root\.nocall \.call, #root\.nocall \.lead \{ display: none; \}/);
+  assert.match(src, /classList\.toggle\('nocall', this\._config\.show_callout !== true\)/);
+});
+
+test('today\'s high and low are off by default, and show_high_low: true brings them back', () => {
+  assert.match(src, /^\s*show_high_low: false,$/m);
+  assert.match(src, /const today = c\.show_high_low === true && /);
+});
