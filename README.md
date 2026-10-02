@@ -263,7 +263,8 @@ their own terms of use, and Esri's and CARTO's in particular set conditions on w
 you are responsible for meeting them on your display. IEM says its material is in the public domain and that
 attribution "would be appreciated"; NWS data is in the public domain; NASA asks to be acknowledged as the source.
 
-Bundled: Leaflet 1.9.4 (BSD 2-Clause) and the Figtree and Fredoka fonts (SIL Open Font License). See
+Bundled: Leaflet 1.9.4 (BSD 2-Clause), the Figtree and Fredoka fonts (SIL Open Font License) and the Material
+Design Icons Xbox logo path (Apache 2.0). See
 [LICENSES/](LICENSES/).
 
 ## Troubleshooting
