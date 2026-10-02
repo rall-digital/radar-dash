@@ -2,9 +2,9 @@
 
 ## 1.2.2
 
-- Horizon: the Xbox control is now just the Xbox sphere logo, drawn as four glass segments with lit edges: gray when
-  off, neon green with a floor glow when on. No tile, "Xbox" label or status line. `xbox.now_playing` is no longer
-  drawn; it is still read out by screen readers.
+- Horizon: the Xbox control is now just the Xbox logo (the `mdi:microsoft-xbox` path), drawn as glass with a lit
+  edge: gray when off, neon green with a floor glow when on. No tile, "Xbox" label or status line.
+  `xbox.now_playing` is no longer drawn; it is still read out by screen readers.
 - Horizon: the projector-screen buttons are arrow-only (up, then down) beside a two-line "Projector Screen" label.
   Their text stays in `aria-label`.
 

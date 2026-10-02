@@ -197,8 +197,8 @@ const THEATER_CSS = `
   .xbox { grid-column: 1 / -1; justify-self: end; position: relative; width: 96px; height: 84px; padding: 0; border: 0; background: none;
     --x-edge: #8e97a8; --x-fill: rgb(70 78 94 / .55); --x-halo: 0; --x-floor: 0; }
   .xbox svg { position: relative; display: block; width: 84px; height: 84px; margin: 0 auto; overflow: visible; }
-  .xbox .halo { fill: none; stroke: var(--x-edge); stroke-width: 7; stroke-linejoin: round; opacity: var(--x-halo); }
-  .xbox .seg { fill: var(--x-fill); stroke: var(--x-edge); stroke-width: 2; stroke-linejoin: round; }
+  .xbox .halo { fill: none; stroke: var(--x-edge); stroke-width: 1.5; stroke-linejoin: round; opacity: var(--x-halo); }
+  .xbox .seg { fill: var(--x-fill); stroke: var(--x-edge); stroke-width: .42; stroke-linejoin: round; }
   .xbox .sheen { fill: url(#xbox-sheen); }
   .xbox::before { content: ""; position: absolute; left: -8px; right: -8px; bottom: -14px; height: 30px; border-radius: 50%;
     background: radial-gradient(closest-side, rgb(110 230 40 / .55), rgb(110 230 40 / 0)); opacity: var(--x-floor); }
@@ -224,18 +224,12 @@ const THEATER_CSS = `
   .np .pp ha-icon { font-size: 34px; }
 `;
 
-// The Xbox sphere: four glass segments with lit edges. The glow is a wider translucent stroke, not a blur filter.
-const XBOX_SEGS = [
-  'M24 11.5A46 46 0 0 1 76 11.5Q63 14 50 21Q37 14 24 11.5Z',
-  'M66 27L83.1 18A46 46 0 0 1 86.7 77.7Q70 56 66 27Z',
-  'M34 27L16.9 18A46 46 0 0 0 13.3 77.7Q30 56 34 27Z',
-  'M50 42Q64 52 81.4 83.6A46 46 0 0 1 18.6 83.6Q36 52 50 42Z',
-];
-const XBOX_LOGO = `<svg viewBox="0 0 100 100" aria-hidden="true"><defs><linearGradient id="xbox-sheen" x1="0" y1="0" x2="0" y2="1">`
-  + '<stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset=".55" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>'
-  + XBOX_SEGS.map((d) => `<path class="halo" d="${d}"/>`).join('')
-  + XBOX_SEGS.map((d) => `<path class="seg" d="${d}"/><path class="sheen" d="${d}"/>`).join('')
-  + '</svg>';
+// The Xbox logo: the path of mdi:microsoft-xbox (Pictogrammers Material Design Icons, Apache-2.0, see LICENSES/), drawn
+// as glass with a lit edge. The glow is a wider translucent stroke, not a blur filter.
+const XBOX_PATH = 'M6.43,3.72C6.5,3.66 6.57,3.6 6.62,3.56C8.18,2.55 10,2 12,2C13.88,2 15.64,2.5 17.14,3.42C17.25,3.5 17.54,3.69 17.7,3.88C16.25,2.28 12,5.7 12,5.7C10.5,4.57 9.17,3.8 8.16,3.5C7.31,3.29 6.73,3.5 6.46,3.7M19.34,5.21C19.29,5.16 19.24,5.11 19.2,5.06C18.84,4.66 18.38,4.56 18,4.59C17.61,4.71 15.9,5.32 13.8,7.31C13.8,7.31 16.17,9.61 17.62,11.96C19.07,14.31 19.93,16.16 19.4,18.73C21,16.95 22,14.59 22,12C22,9.38 21,7 19.34,5.21M15.73,12.96C15.08,12.24 14.13,11.21 12.86,9.95C12.59,9.68 12.3,9.4 12,9.1C12,9.1 11.53,9.56 10.93,10.17C10.16,10.94 9.17,11.95 8.61,12.54C7.63,13.59 4.81,16.89 4.65,18.74C4.65,18.74 4,17.28 5.4,13.89C6.3,11.68 9,8.36 10.15,7.28C10.15,7.28 9.12,6.14 7.82,5.35L7.77,5.32C7.14,4.95 6.46,4.66 5.8,4.62C5.13,4.67 4.71,5.16 4.71,5.16C3.03,6.95 2,9.35 2,12A10,10 0 0,0 12,22C14.93,22 17.57,20.74 19.4,18.73C19.4,18.73 19.19,17.4 17.84,15.5C17.53,15.07 16.37,13.69 15.73,12.96Z';
+const XBOX_LOGO = `<svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="xbox-sheen" x1="0" y1="0" x2="0" y2="1">`
+  + '<stop offset="0" stop-color="#fff" stop-opacity=".24"/><stop offset=".55" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>'
+  + `<path class="halo" d="${XBOX_PATH}"/><path class="seg" d="${XBOX_PATH}"/><path class="sheen" d="${XBOX_PATH}"/></svg>`;
 
 const CALLOUT_CSS = `
   .home { position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: #fff;
