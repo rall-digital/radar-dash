@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Horizon: the Xbox toggle is now a round button with the Xbox logo, gray when off and green when on (breathing
+  while it starts or stops), in place of the leading icon and the sliding switch. The whole tile still taps.
+
 ## 1.2.0
 
 - One resource loads all three cards. `wall-radar-card.js` (the file HACS registers) now loads
