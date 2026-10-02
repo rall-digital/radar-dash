@@ -183,7 +183,7 @@ This is a household display that was built for one home and then made configurab
 | `music` | unset | `media_player` | Now-playing pill. |
 | `show_attribution` | `true` | | The credit line along the bottom edge. |
 | `xbox` | unset | `switch` (+ optional `sensor`) | The scene toggle. |
-| `screen` | unset | two `automation`s | Screen down / up buttons. |
+| `screen` | unset | two `automation`s | Up / down arrow buttons beside a "Projector Screen" label. |
 | `volume` | unset | two `script`s, `media_player` targets | Hidden volume taps. |
 | `select` | unset | `remote` | Hidden clock tap. |
 | `rain_window` | unset | `input_text` | Optional rain timing you supply yourself. |

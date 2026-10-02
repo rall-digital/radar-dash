@@ -193,18 +193,23 @@ const BOTTOM_CSS = `
 `;
 
 const THEATER_CSS = `
-  .theater { left: 904px; top: 612px; width: 340px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .xbox { grid-column: 1 / -1; justify-self: end; width: 84px; height: 84px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    background: #4a5262; color: #c3cad6; border: 1px solid rgb(255 255 255 / .14); }
-  .xbox ha-icon { font-size: 48px; }
-  .xbox[data-s="on"] { background: #107c10; color: #fff; border-color: rgb(255 255 255 / .2); box-shadow: 0 0 22px rgb(16 124 16 / .55); }
-  .xbox[data-s="starting"], .xbox[data-s="stopping"] { animation: breathe .9s ease-in-out infinite alternate; }
-  .xbox[data-s="starting"] { background: #107c10; color: #fff; }
+  .theater { left: 904px; top: 612px; width: 340px; display: grid; grid-template-columns: auto 1fr 1fr; gap: 10px; }
+  .xbox { grid-column: 1 / -1; justify-self: end; position: relative; width: 96px; height: 84px; padding: 0; border: 0; background: none;
+    --x-edge: #8e97a8; --x-fill: rgb(70 78 94 / .55); --x-halo: 0; --x-floor: 0; }
+  .xbox svg { position: relative; display: block; width: 84px; height: 84px; margin: 0 auto; overflow: visible; }
+  .xbox .halo { fill: none; stroke: var(--x-edge); stroke-width: 7; stroke-linejoin: round; opacity: var(--x-halo); }
+  .xbox .seg { fill: var(--x-fill); stroke: var(--x-edge); stroke-width: 2; stroke-linejoin: round; }
+  .xbox .sheen { fill: url(#xbox-sheen); }
+  .xbox::before { content: ""; position: absolute; left: -8px; right: -8px; bottom: -14px; height: 30px; border-radius: 50%;
+    background: radial-gradient(closest-side, rgb(110 230 40 / .55), rgb(110 230 40 / 0)); opacity: var(--x-floor); }
+  .xbox[data-s="on"], .xbox[data-s="starting"] { --x-edge: #a6ff2e; --x-fill: rgb(48 120 14 / .62); --x-halo: .22; --x-floor: 1; }
+  .xbox[data-s="starting"] svg, .xbox[data-s="stopping"] svg, .xbox[data-s="starting"]::before { animation: breathe .9s ease-in-out infinite alternate; }
   .xbox:disabled { opacity: .45; }
   @keyframes breathe { from { opacity: 1; } to { opacity: .3; } }
   .scr { position: relative; overflow: hidden; height: 58px; display: flex; align-items: center; justify-content: center; gap: 8px;
     border-radius: 16px; background: rgb(255 255 255 / .06); border: 1px solid rgb(255 255 255 / .1); font: 600 16px/1 ${TF}; color: #c6d1e3; }
-  .scr ha-icon { font-size: 24px; }
+  .scr ha-icon { font-size: 34px; }
+  .scr-l { height: 58px; display: flex; align-items: center; padding: 0 6px 0 2px; font: 600 17px/1.15 ${TF}; color: #c6d1e3; }
   .scr:disabled { opacity: .45; }
   .scr .bar { position: absolute; left: 0; right: 0; bottom: 0; height: 5px; background: #8db8ff; transform: scaleX(0); transform-origin: 0 50%; }
   .scr[data-run] .bar { animation: fill var(--dur, 45s) linear forwards; animation-delay: var(--dl, 0s); }
@@ -218,6 +223,19 @@ const THEATER_CSS = `
   .np .pp { flex: none; width: 64px; height: 64px; border-radius: 50%; background: #eef2f8; color: #0c1424; display: flex; align-items: center; justify-content: center; }
   .np .pp ha-icon { font-size: 34px; }
 `;
+
+// The Xbox sphere: four glass segments with lit edges. The glow is a wider translucent stroke, not a blur filter.
+const XBOX_SEGS = [
+  'M24 11.5A46 46 0 0 1 76 11.5Q63 14 50 21Q37 14 24 11.5Z',
+  'M66 27L83.1 18A46 46 0 0 1 86.7 77.7Q70 56 66 27Z',
+  'M34 27L16.9 18A46 46 0 0 0 13.3 77.7Q30 56 34 27Z',
+  'M50 42Q64 52 81.4 83.6A46 46 0 0 1 18.6 83.6Q36 52 50 42Z',
+];
+const XBOX_LOGO = `<svg viewBox="0 0 100 100" aria-hidden="true"><defs><linearGradient id="xbox-sheen" x1="0" y1="0" x2="0" y2="1">`
+  + '<stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset=".55" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>'
+  + XBOX_SEGS.map((d) => `<path class="halo" d="${d}"/>`).join('')
+  + XBOX_SEGS.map((d) => `<path class="seg" d="${d}"/><path class="sheen" d="${d}"/>`).join('')
+  + '</svg>';
 
 const CALLOUT_CSS = `
   .home { position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: #fff;
@@ -236,7 +254,7 @@ const CALLOUT_CSS = `
   #root.drifting .drift { animation: drift 80s ease-in-out infinite alternate; will-change: transform; }
   @keyframes drift { from { transform: none; } to { transform: translate(calc(-70px * var(--s, 1)), calc(-26px * var(--s, 1))) scale(1.06); } }
   @media (prefers-reduced-motion: reduce) {
-    #root .drift, .home::after, .xbox { animation: none !important; }
+    #root .drift, .home::after, .xbox svg, .xbox::before { animation: none !important; }
   }
 `;
 
@@ -760,10 +778,11 @@ class WallHorizonCard extends HTMLElement {
       const running = this._screen.dir === dir;
       const other = !!this._screen.dir && !running;
       const style = running ? ` style="--dur:${c.screen.seconds}s;--dl:-${((now - this._screen.t0) / 1000).toFixed(2)}s"` : '';
-      return `<button type="button" class="scr" data-act="screen" data-dir="${dir}"${other ? ' disabled' : ''}${running ? ' data-run aria-disabled="true"' : ''}${style}>${icon(dir === 'down' ? 'mdi:arrow-down' : 'mdi:arrow-up')}<span>${screenLabel(dir, running)}</span><span class="bar"></span></button>`;
+      return `<button type="button" class="scr" data-act="screen" data-dir="${dir}" aria-label="${screenLabel(dir, running)}"${other ? ' disabled' : ''}${running ? ' data-run aria-disabled="true"' : ''}${style}>${icon(dir === 'down' ? 'mdi:arrow-down' : 'mdi:arrow-up')}<span class="bar"></span></button>`;
     };
-    const xbox = c.xbox.switch ? `<button type="button" class="xbox" data-act="xbox" data-s="${v.phase}" aria-pressed="${v.pressed}"${v.disabled ? ' disabled' : ''} aria-label="Xbox, ${esc(v.sub)}">${icon('mdi:microsoft-xbox')}</button>` : '';
-    setHTML(this._el.theater, `${xbox}${scr('down')}${scr('up')}`);
+    const xbox = c.xbox.switch ? `<button type="button" class="xbox" data-act="xbox" data-s="${v.phase}" aria-pressed="${v.pressed}"${v.disabled ? ' disabled' : ''} aria-label="Xbox, ${esc(v.sub)}">${XBOX_LOGO}</button>` : '';
+    const label = c.screen.up || c.screen.down ? '<span class="scr-l">Projector<br>Screen</span>' : '';
+    setHTML(this._el.theater, `${xbox}${label}${scr('up')}${scr('down')}`);
   }
 
   _setXbox(ev, render = true) {
