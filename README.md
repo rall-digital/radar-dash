@@ -41,31 +41,27 @@ YAML, and writes only when you say yes. [AGENTS.md](AGENTS.md) is the full proce
 1. In HACS, open the three-dot menu, choose **Custom repositories**, add
    `https://github.com/rall-digital/radar-dash` with type **Dashboard**.
 2. Find **radar-dash** in HACS and download it. HACS registers the resource
-   `/hacsfiles/radar-dash/wall-radar-card.js` for you.
+   `/hacsfiles/radar-dash/wall-radar-card.js` for you. That one resource is all you need: it loads all three cards.
 3. Add a card to a dashboard:
    ```yaml
    type: custom:wall-radar-card
    ```
-4. Only if you want the Horizon layout, and only AFTER the download in step 2: add a second resource by hand under
-   **Settings > Dashboards > three-dot menu > Resources**: URL `/hacsfiles/radar-dash/wall-horizon-card.js`, type
-   **JavaScript module**. HACS registers one file per repository, and that one is the radar card.
-5. Only if you want the thermostat card, also after step 2: add `/hacsfiles/radar-dash/wall-thermostat-card.js`
-   the same way. The card works without the radar, but keep the radar entry HACS made: see Resource order below.
+   (or `custom:wall-horizon-card`, or `custom:wall-thermostat-card` with an `entity`).
 
-### Resource order (HACS)
+Updates just work: HACS gives that resource a new `?hacstag=` on every update, and the card passes it on to every
+file it loads (the other two cards, their library, Leaflet and the fonts), so no browser keeps an old copy. Do not
+add resources for `wall-horizon-card.js` or `wall-thermostat-card.js`, and do not delete the one HACS made.
 
-On every update, HACS rewrites the FIRST resource whose URL starts with `/hacsfiles/radar-dash/` to point at
-`wall-radar-card.js`. So the radar entry HACS created must come before your Horizon and thermostat entries. If one of
-them is first (you added it before downloading, or deleted the radar entry), the next update silently turns it into
-a second radar entry, and that card stops loading with "Custom element doesn't exist".
+### Upgrading from 1.1.x
 
-To check: **Settings > Dashboards > three-dot menu > Resources** lists the entries in order. Among the
-`/hacsfiles/radar-dash/` ones, `wall-radar-card.js` must be the first. `node tools/lovelace-ws.mjs inspect` reports
-the same thing under `warnings`, and `verify` prints a `WARN:` line.
-
-To fix: delete your Horizon and thermostat entries (and any second `wall-radar-card.js` entry an update already
-made), make sure exactly one `/hacsfiles/radar-dash/wall-radar-card.js` entry remains (redownload radar-dash in
-HACS if none does), then add the other entries again. New entries go to the end of the list, after the radar one.
+Version 1.1.x asked you to add `/hacsfiles/radar-dash/wall-horizon-card.js` and
+`/hacsfiles/radar-dash/wall-thermostat-card.js` (or the `/local/radar-dash/` ones) as extra resources. Remove them
+now: under **Settings > Dashboards > three-dot menu > Resources**, delete the `wall-horizon-card.js` and
+`wall-thermostat-card.js` entries, keep the `wall-radar-card.js` one, and reload the page on each screen. Those extra
+entries carry no version, so a browser can keep an old copy of a card for weeks, and it can load before the current
+one. They also trip HACS, which on every update rewrites the FIRST resource whose URL starts with
+`/hacsfiles/radar-dash` to the radar card. `node tools/lovelace-ws.mjs inspect` lists any that are left under
+`warnings`, `verify` prints a `WARN:` line for each, and the browser console names one that loaded first.
 
 The card loads Leaflet, its stylesheet, the Horizon library and two fonts from the folder it was loaded from.
 HACS downloads the whole `dist/` folder, so they sit next to it. If the map area stays blank after a HACS install,
@@ -75,13 +71,12 @@ check that `/hacsfiles/radar-dash/leaflet.js` opens in your browser; if it does 
 
 1. Copy everything in `dist/` (the `fonts/` folder included) to `/config/www/radar-dash/` on your Home Assistant.
 2. **Settings > Dashboards > three-dot menu > Resources > Add resource**: URL
-   `/local/radar-dash/wall-radar-card.js`, type **JavaScript module**. For the Horizon layout add
-   `/local/radar-dash/wall-horizon-card.js` the same way, and for the thermostat card
-   `/local/radar-dash/wall-thermostat-card.js` (on its own, the thermostat card needs only its own line).
+   `/local/radar-dash/wall-radar-card.js?v=1.2.0`, type **JavaScript module**. That one resource loads all three
+   cards.
 3. Reload the browser, then add the card as above.
 
-When you update the files later, add or change a `?v=2` suffix on the resource URL so browsers fetch the new copy.
-The card passes its own suffix on to the files it loads.
+When you update the files later, change the `?v=` suffix on that resource URL (for example to the new version) so
+browsers fetch the new copies. The card passes its own suffix on to every file it loads.
 
 ## wall-radar-card
 
@@ -154,7 +149,7 @@ This is a household display that was built for one home and then made configurab
 
 - The layout is a fixed 1280 x 800 design, scaled to fit the screen. It suits a landscape tablet in a panel view.
   It is not responsive and not meant for phones.
-- It needs both resources registered: `wall-radar-card.js` and `wall-horizon-card.js`.
+- It needs only the one resource, `wall-radar-card.js`, which loads it.
 - **24-hour clock, English, Fahrenheit.** The clock is always `HH:MM` in 24-hour form and the date is in US
   English. Temperatures are shown as whole numbers with a degree sign and no unit conversion: the forecast bar
   colours (cool below about 62, warm above) and the thermostat's fallback range (61 to 88) assume °F. With a
@@ -269,11 +264,10 @@ Bundled: Leaflet 1.9.4 (BSD 2-Clause) and the Figtree and Fredoka fonts (SIL Ope
 
 | symptom | check |
 |---|---|
-| "Custom element doesn't exist: wall-radar-card" | The resource is not registered, or the browser has a stale copy. Check Settings > Dashboards > Resources, then hard-reload. |
+| "Custom element doesn't exist" (any of the three cards) | The `wall-radar-card.js` resource is not registered, or the browser has a stale copy. Check Settings > Dashboards > Resources, then hard-reload. |
 | Card area stays empty | Home Assistant has no location set and the card has no `center_latitude`/`center_longitude`. Set either. |
 | Basemap draws, no radar | Outside the US, or no rain: the radar layer is transparent when it is dry. Set `show_status: true` to see whether data is arriving. |
-| Horizon card missing | `wall-horizon-card.js` needs its own resource entry (see install step 4). After a HACS update, check the resource order (Install with HACS, Resource order). |
-| Thermostat card missing | `wall-thermostat-card.js` needs its own resource entry (see install step 5). After a HACS update, check the resource order (Install with HACS, Resource order). |
+| An old Horizon or thermostat card after an update | A leftover 1.1.x resource entry: see Upgrading from 1.1.x. |
 | Want to see what the card is doing | Inspect the element: `data-status`, `data-mode`, `data-site`, `data-frames` (see docs/options.md). |
 
 ## Development

@@ -2024,6 +2024,12 @@ class WallRadarCard extends (globalThis.HTMLElement ?? class {}) {
   }
 }
 
+// The other two cards, loaded from this file's folder with this file's own query string: HACS registers only this
+// file and bumps its ?hacstag= on every update, so one resource entry loads (and cache-busts) all three cards.
+// Not awaited: the radar card is defined first and never waits for, or fails with, a sibling. Resolves when done.
+const SIBLINGS = [['wall-horizon-card', 'WallHorizonCard'], ['wall-thermostat-card', 'WallThermostatCard']];
+let siblingsLoaded;
+
 // A second copy (e.g. the resource listed under two ?v= values) must not throw.
 if (globalThis.customElements && !customElements.get('wall-radar-card')) {
   customElements.define('wall-radar-card', WallRadarCard);
@@ -2033,6 +2039,16 @@ if (globalThis.customElements && !customElements.get('wall-radar-card')) {
     name: 'Wall Radar Card',
     description: 'NEXRAD radar loop (IEM): super-res site radar + MRMS, HRRR forecast, NWS warnings.',
   });
+  siblingsLoaded = Promise.allSettled(SIBLINGS.map(([tag]) => import(new URL(`${tag}.js${VERSION}`, BASE).href))).then((results) => {
+    const failed = results.flatMap((r, i) => (r.status === 'rejected' ? [`${SIBLINGS[i][0]}.js (${r.reason?.message ?? r.reason})`] : []));
+    if (failed.length) console.warn(`wall-radar-card: could not load ${failed.join(', ')}; the radar card works without them`);
+    // A card defined by another copy first (an extra resource entry left from radar-dash 1.1.x) wins over this one.
+    const other = results.flatMap((r, i) => {
+      const [tag, name] = SIBLINGS[i];
+      return r.status === 'fulfilled' && r.value[name] && customElements.get(tag) !== r.value[name] ? [tag] : [];
+    });
+    if (other.length) console.warn(`wall-radar-card: ${other.join(' and ')} came from another resource entry, which may be an old copy. Since radar-dash 1.2.0 this file loads every card: remove the extra ${other.map((t) => `${t}.js`).join(' and ')} resource entry`);
+  });
 }
 
-export { WallRadarCard, N0Q_PALETTE, LCREF_PALETTE };
+export { WallRadarCard, N0Q_PALETTE, LCREF_PALETTE, siblingsLoaded };

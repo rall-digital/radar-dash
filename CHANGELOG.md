@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.2.0
+
+- One resource loads all three cards. `wall-radar-card.js` (the file HACS registers) now loads
+  `wall-horizon-card.js` and `wall-thermostat-card.js` from its own folder with its own query string, and they load
+  their library, Leaflet and fonts the same way. Every HACS update (a new `?hacstag=`) therefore reaches every file,
+  so screens no longer keep an old Horizon, thermostat or library for weeks, and there is no resource order to get
+  wrong. The radar card never waits for the other two: if one fails to load, the radar card still works and the
+  browser console gets one line. Each file still works when registered on its own.
+- Upgrading from 1.1.x: remove the `wall-horizon-card.js` and `wall-thermostat-card.js` resource entries; keep the
+  `wall-radar-card.js` one. While a leftover entry exists, an old copy of a card can load first; the radar card then
+  names it in the browser console. README, "Upgrading from 1.1.x".
+- `tools/lovelace-ws.mjs`: `inspect` and `verify` warn about each leftover entry (they remove nothing); `verify`
+  accepts the radar resource alone for any of the three cards and fetches the files with that resource's query;
+  `add-resource` refuses the other two cards once the radar file is registered.
+- Manual install: one resource, `/local/radar-dash/wall-radar-card.js?v=<version>`.
+- No change to how any card draws (checked pixel for pixel against 1.1.1 with the same recorded data).
+
 ## 1.1.1
 
 - `wall-thermostat-card` honours the precision of the entity's `target_temp_step`: a 0.25 step shows and sends

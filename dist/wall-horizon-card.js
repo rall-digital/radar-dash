@@ -1222,3 +1222,5 @@ if (!customElements.get('wall-horizon-card')) {
     description: 'A wall display: a full-screen radar with the clock, weather, rooms and TV controls around its edges.',
   });
 }
+
+export { WallHorizonCard };

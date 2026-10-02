@@ -104,8 +104,8 @@ The card fires no events. A parent card, a test or an installer reads these. Abs
 ## wall-horizon-card
 
 `type: custom:wall-horizon-card`. As-is: a 1280 x 800 design scaled to fit, with a 24-hour clock, English text
-and temperatures treated as °F (see the README). Needs `wall-radar-card.js` registered
-as a resource too. With nothing but `type` it shows the radar, the clock and the date.
+and temperatures treated as °F (see the README). Loaded by the `wall-radar-card.js`
+resource; it needs no resource of its own. With nothing but `type` it shows the radar, the clock and the date.
 
 | option | type | default | entity domain | meaning |
 |---|---|---|---|---|
@@ -155,9 +155,9 @@ weather_entity: weather.forecast_home
 
 ## wall-thermostat-card
 
-`type: custom:wall-thermostat-card`. One `climate` entity, any dashboard, ordinary card sizes. Needs its own
-resource, `wall-thermostat-card.js`; it loads `wall-horizon-lib.js` from the same folder and does not need the
-radar card.
+`type: custom:wall-thermostat-card`. One `climate` entity, any dashboard, ordinary card sizes. Loaded by the
+`wall-radar-card.js` resource (it needs no resource of its own, and does not use the radar); it loads
+`wall-horizon-lib.js` from the same folder.
 
 | option | type | default | entity domain | meaning |
 |---|---|---|---|---|

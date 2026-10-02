@@ -14,8 +14,8 @@
 //
 // read-only:
 //   inspect                           version, country, location set or not, HACS, resource_count, radar-dash
-//                                     resources, dashboards, cards found by type, and warnings (a HACS resource order
-//                                     that the next HACS update would break)
+//                                     resources, dashboards, cards found by type, and warnings (leftover 1.1.x extra
+//                                     card entries; a HACS resource order that the next HACS update would break)
 //   entities [domain ...] [--all-sensors]
 //                                     entity_id, name, device class and unit (never the state) for the domains the
 //                                     cards use (default: weather sensor climate media_player remote switch script
@@ -25,13 +25,15 @@
 //   plan-view <dashboard> <view.json> prints what add-view would do, and whether it would refuse
 //   readback <dashboard> [out.json]   saves the dashboard's config as it is now
 //   verify <dashboard>                exit 0 only if a card is on the dashboard, its resource is registered, and the
-//                                     card file and the files it loads are really served by HA_URL (HTTP 200).
-//                                     Prints a WARN line, without failing, for the same resource-order problem.
+//                                     card file and the files it loads are really served by HA_URL (HTTP 200). The
+//                                     wall-radar-card.js resource serves all three cards (it loads the other two).
+//                                     Prints a WARN line, without failing, for the same warnings as inspect.
 //
 // WRITES. Each refuses with exit 2, before opening any connection, unless --confirm-write is passed. Pass it only
 // after the human has seen the exact change and said yes.
 //   add-resource <url>                registers /hacsfiles/radar-dash/<file>.js or /local/radar-dash/<file>.js as a
-//                                     JavaScript module; refuses if that file is registered already. Additive: it is
+//                                     JavaScript module; refuses if that file is registered already, and refuses the
+//                                     other two cards once wall-radar-card.js (which loads them) is. Additive: it is
 //                                     not part of any dashboard backup, and is undone with remove-resource.
 //   create-dashboard <url-path> <title>  a new, empty storage dashboard (url-path needs a hyphen); touches no other
 //   add-view <dashboard> <view.json> <backup.json>
@@ -245,6 +247,19 @@ async function readAfterSave(dashboard, name, undo) {
   }
 }
 
+const RADAR_FILE = CARDS['custom:wall-radar-card'].file;
+const isRadarResource = (r) => RESOURCE.test(r.url) && resourceFile(r.url).endsWith(`/${RADAR_FILE}`);
+
+/**
+ * Since 1.2.0 wall-radar-card.js loads the other two cards itself, with its own query string (so a HACS update busts
+ * every cache). With a radar entry registered, an entry for either other card is redundant, and an unversioned one
+ * can load a stale copy that defines its element first. One warning per such entry; nothing is removed here.
+ */
+function redundantWarnings(resources) {
+  if (!resources.some(isRadarResource)) return [];
+  return resources.filter((r) => RESOURCE.test(r.url) && !isRadarResource(r)).map((r) => `${r.url} is no longer needed: since radar-dash 1.2.0 the wall-radar-card.js entry loads every card with its own version, and this extra entry can load an old copy. Remove it (remove-resource ${r.url}); never the radar entry`);
+}
+
 /** A warning when the next HACS update would overwrite one of the extra card resources, else null. */
 function hacsOrderWarning(resources) {
   const hacs = resources.filter((r) => String(r.url).startsWith(HACS_NAMESPACE));
@@ -265,7 +280,7 @@ async function main() {
         hacs_installed: (haConfig.components || []).includes('hacs'),
         resources: resources.filter((r) => /radar-dash|wall-(radar|horizon|thermostat)-card/.test(r.url)),
         resource_count: resources.length,
-        warnings: [hacsOrderWarning(resources)].filter(Boolean),
+        warnings: [hacsOrderWarning(resources), ...redundantWarnings(resources)].filter(Boolean),
         dashboards: [],
       };
       for (const d of [{ url_path: null, title: 'Overview (default)', mode: 'storage' }, ...dashboards]) {
@@ -337,13 +352,18 @@ async function main() {
       const cards = CARD_TYPES.flatMap((t) => findCards(config, t).map((h) => `${t} in view ${h.view}`));
       console.log(`resources: ${ours.map((r) => r.url).join(', ') || 'none'}`);
       console.log(`cards: ${cards.join(', ') || 'none'}`);
-      const order = hacsOrderWarning(resources);
-      if (order) console.log(`WARN: ${order}`);
+      for (const w of [hacsOrderWarning(resources), ...redundantWarnings(resources)].filter(Boolean)) console.log(`WARN: ${w}`);
       if (!cards.length) throw new Error('the dashboard holds none of the cards');
-      // Each card on the dashboard needs its own resource; Horizon also needs the radar card's.
+      // Each card on the dashboard needs its own resource, or the radar card's (which loads it from its own folder,
+      // with its own query); Horizon also needs the radar card's.
       const present = CARD_TYPES.filter((t) => findCards(config, t).length);
       const needed = [...new Set(present.flatMap((t) => [t, ...(CARDS[t].needs || [])]))];
-      const resourceOf = (t) => ours.find((r) => resourceFile(r.url).endsWith(`/${CARDS[t].file}`));
+      const resourceOf = (t) => {
+        const own = ours.find((r) => resourceFile(r.url).endsWith(`/${CARDS[t].file}`));
+        const radar = ours.find(isRadarResource);
+        if (own || !radar) return own;
+        return { url: `${resourceFile(radar.url).replace(/[^/]+$/, '')}${CARDS[t].file}${radar.url.slice(resourceFile(radar.url).length)}` };
+      };
       for (const t of needed) if (!resourceOf(t)) throw new Error(`${CARDS[t].file} is not registered as a resource (the dashboard holds a ${present.find((p) => p === t || (CARDS[p].needs || []).includes(t)).replace('custom:', '')})`);
       // A registered resource proves nothing about the files: fetch them the way the browser will.
       for (const t of needed) {
@@ -353,8 +373,9 @@ async function main() {
         if (got.status !== 200) throw new Error(`${res.url} is registered but not served: HTTP ${got.status}${got.error ? ` (${got.error})` : ''}. Are the files in place?`);
         if (!got.body.includes(`customElements.define('${element}'`)) throw new Error(`${res.url} answers 200 but does not define ${element} (a login page or the wrong file?)`);
         const dir = resourceFile(res.url).replace(/[^/]+$/, '');
+        const query = res.url.slice(resourceFile(res.url).length);
         for (const f of loads) {
-          const sib = await served(`${dir}${f}`);
+          const sib = await served(`${dir}${f}${query}`);
           if (sib.status !== 200) throw new Error(`${dir}${f} is not served: HTTP ${sib.status}. The card loads it from its own folder; copy the whole dist/ folder`);
         }
         console.log(`served: ${res.url} and ${loads.length} file(s) it loads`);
@@ -366,6 +387,8 @@ async function main() {
       const url = args[0] || '';
       if (!RESOURCE.test(url)) throw new Error('add-resource needs /hacsfiles/radar-dash/<card>.js or /local/radar-dash/<card>.js (optionally ?v=...), where <card> is wall-radar-card, wall-horizon-card or wall-thermostat-card');
       const resources = await call({ type: 'lovelace/resources' });
+      const radar = resources.find(isRadarResource);
+      if (radar && !isRadarResource({ url })) throw new Error(`${resourceFile(url).split('/').pop()} is not needed: ${radar.url} loads every card since radar-dash 1.2.0, and an extra entry can load an old copy`);
       const dup = resources.find((r) => resourceFile(r.url).split('/').pop() === resourceFile(url).split('/').pop());
       if (dup) throw new Error(`${resourceFile(url).split('/').pop()} is registered already as ${dup.url}; registering it twice is not needed`);
       const created = await call({ type: 'lovelace/resources/create', res_type: 'module', url });

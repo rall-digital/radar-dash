@@ -442,19 +442,20 @@ test('V1 inspect and verify warn when an extra radar-dash resource precedes the 
   for (const resources of [[HACS_HZ, HACS_RADAR], [HACS_TH, HACS_RADAR, HACS_HZ], [HACS_TH]]) {
     const ins = run(['inspect'], { state: { dashboards, resources } });
     assert.equal(ins.code, 0, ins.out);
-    const w = JSON.parse(ins.out).warnings;
+    // Since 1.2.0 the extra entries also draw a "no longer needed" warning (V4); this test is about the order one.
+    const w = JSON.parse(ins.out).warnings.filter((x) => /rewrites/.test(x));
     assert.equal(w.length, 1, ins.out);
     assert.match(w[0], new RegExp(resources[0].url.split('/').pop()));
     assert.match(w[0], /HACS/);
     const ver = run(['verify', 'wall-tablet'], { state: { dashboards, resources, served: { ...served, [HACS_TH.url]: TH_JS } } });
-    assert.match(ver.out, /^WARN: .*wall-(horizon|thermostat)-card\.js.*HACS/m, ver.out);
+    assert.match(ver.out, /^WARN: .*wall-(horizon|thermostat)-card\.js.*HACS.*rewrites/m, ver.out);
   }
   // Radar first, any /local entries, or no HACS entries at all: no warning.
   for (const resources of [[HACS_RADAR, HACS_HZ, HACS_TH], [{ id: 'l', url: '/local/radar-dash/wall-horizon-card.js' }, HACS_RADAR, HACS_HZ], [], [{ id: 'a', url: '/local/radar-dash/wall-radar-card.js' }, { id: 'b', url: '/local/radar-dash/wall-horizon-card.js' }]]) {
     const ins = run(['inspect'], { state: { dashboards, resources } });
-    assert.deepEqual(JSON.parse(ins.out).warnings, [], ins.out);
+    assert.deepEqual(JSON.parse(ins.out).warnings.filter((x) => /rewrites/.test(x)), [], ins.out);
     const ver = run(['verify', 'wall-tablet'], { state: { dashboards, resources, served: { ...served, ...servedAt('/local/radar-dash/', true) } } });
-    assert.doesNotMatch(ver.out, /WARN/, ver.out);
+    assert.doesNotMatch(ver.out, /WARN: .*rewrites/, ver.out);
   }
   // The warning changes no exit code: a correct install with a bad order still verifies.
   const ok = run(['verify', 'wall-tablet'], { state: { dashboards, resources: [HACS_HZ, HACS_RADAR], served } });
@@ -479,4 +480,59 @@ test('V3 the HACS prefix has no trailing slash, as in HACS: a /hacsfiles/radar-d
   assert.equal(w.length, 1, ins.out);
   assert.match(w[0], /radar-dash-extra\/other-card\.js/);
   assert.deepEqual(JSON.parse(run(['inspect'], { state: { resources: [HACS_RADAR, extra] } }).out).warnings, [], 'radar first: fine');
+});
+
+// Since 1.2.0 wall-radar-card.js loads the other two cards itself, with its own query string. An extra entry for
+// either is redundant, and an unversioned one can load a stale copy that wins the define.
+const SERVED_HZ_TH = { ...servedAt('/hacsfiles/radar-dash/', true), [HACS_TH.url]: TH_JS };
+const HZ_VIEW = { title: 'H', type: 'panel', cards: [{ type: 'custom:wall-horizon-card' }] };
+
+test('V4 inspect and verify warn that extra card entries are no longer needed, and remove nothing', () => {
+  const dashboards = { default: null, 'wall-tablet': { views: [HZ_VIEW, TH_VIEW] } };
+  const resources = [HACS_RADAR, HACS_HZ, HACS_TH];
+  const ins = run(['inspect'], { state: { dashboards, resources } });
+  assert.equal(ins.code, 0, ins.out);
+  const w = JSON.parse(ins.out).warnings;
+  assert.equal(w.length, 2, ins.out);
+  assert.match(w[0], /wall-horizon-card\.js.*no longer needed.*remove-resource \/hacsfiles\/radar-dash\/wall-horizon-card\.js/);
+  assert.match(w[1], /wall-thermostat-card\.js.*no longer needed/);
+  for (const x of w) assert.match(x, /never the radar entry/i);
+  const ver = run(['verify', 'wall-tablet'], { state: { dashboards, resources, served: SERVED_HZ_TH } });
+  assert.equal(ver.code, 0, ver.out);
+  assert.equal((ver.out.match(/^WARN: .*no longer needed/gm) || []).length, 2, ver.out);
+  for (const r of [ins, ver]) {
+    assert.deepEqual(r.saves, []);
+    assert.equal(r.sends.some((m) => /resources\/(delete|update|create)/.test(m)), false, 'reads only');
+  }
+  // A /local install the same way; and an extra entry with no radar entry anywhere is not redundant.
+  const local = [{ id: 'a', url: '/local/radar-dash/wall-radar-card.js?v=1.1.1' }, { id: 'b', url: '/local/radar-dash/wall-thermostat-card.js' }];
+  assert.equal(JSON.parse(run(['inspect'], { state: { resources: local } }).out).warnings.length, 1);
+  assert.deepEqual(JSON.parse(run(['inspect'], { state: { resources: [local[1]] } }).out).warnings, []);
+});
+
+test('V5 verify: the radar entry alone serves a Horizon or thermostat card, fetched with the radar entry\'s query', () => {
+  for (const [view, file] of [[HZ_VIEW, 'wall-horizon-card.js'], [TH_VIEW, 'wall-thermostat-card.js']]) {
+    const dashboards = { default: null, 'wall-tablet': { views: [view] } };
+    const ok = run(['verify', 'wall-tablet'], { state: { dashboards, resources: [HACS_RADAR], served: SERVED_HZ_TH } });
+    assert.equal(ok.code, 0, ok.out);
+    assert.ok(ok.fetches.includes(`http://ha.invalid:8123/hacsfiles/radar-dash/${file}?hacstag=1`), ok.fetches.join(' '));
+    assert.ok(ok.fetches.includes('http://ha.invalid:8123/hacsfiles/radar-dash/wall-horizon-lib.js?hacstag=1'), ok.fetches.join(' '));
+    assert.doesNotMatch(ok.out, /WARN/);
+    const missing = { ...SERVED_HZ_TH };
+    delete missing[`/hacsfiles/radar-dash/${file}`];
+    const bad = run(['verify', 'wall-tablet'], { state: { dashboards, resources: [HACS_RADAR], served: missing } });
+    assert.equal(bad.code, 1, bad.out);
+    assert.match(bad.out, new RegExp(file.replace('.', '\\.')));
+    assert.equal(run(['verify', 'wall-tablet'], { state: { dashboards, resources: [], served: SERVED_HZ_TH } }).code, 1, 'no resource at all');
+  }
+});
+
+test('V6 add-resource refuses an extra card entry when a radar entry exists; alone it is still allowed', () => {
+  for (const extra of ['/hacsfiles/radar-dash/wall-horizon-card.js', '/local/radar-dash/wall-thermostat-card.js']) {
+    const r = run(['add-resource', extra, '--confirm-write'], { state: { resources: [HACS_RADAR] } });
+    assert.equal(r.code, 1, r.out);
+    assert.match(r.out, /not needed/);
+    assert.equal(r.sends.includes('lovelace/resources/create'), false);
+    assert.equal(run(['add-resource', extra, '--confirm-write']).code, 0, 'no radar entry: a standalone card is allowed');
+  }
 });

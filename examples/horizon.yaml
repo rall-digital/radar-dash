@@ -3,7 +3,7 @@
 #
 # Every entity below is a PLACEHOLDER. Replace each with one of yours, or delete the line or block:
 # anything left out is simply not drawn, and its tap does nothing.
-# Needs BOTH resources registered: wall-radar-card.js and wall-horizon-card.js.
+# Needs one resource: wall-radar-card.js, which loads this card too.
 title: Horizon
 path: horizon
 type: panel
