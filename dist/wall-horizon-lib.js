@@ -227,6 +227,15 @@ export function radarFallback(cfg) {
   return rest;
 }
 
+/** A room name as up to two lines, split at the space nearest the middle ("Great Room" -> Great / Room). */
+export function twoLines(name) {
+  const s = String(name).trim().replace(/\s+/g, ' ');
+  const mid = s.length / 2;
+  let at = -1;
+  for (let i = s.indexOf(' '); i !== -1; i = s.indexOf(' ', i + 1)) if (at === -1 || Math.abs(i - mid) < Math.abs(at - mid)) at = i;
+  return at === -1 ? [s] : [s.slice(0, at), s.slice(at + 1)];
+}
+
 /** HTML-escape text for innerHTML. */
 export const esc = (s) => String(s).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
 

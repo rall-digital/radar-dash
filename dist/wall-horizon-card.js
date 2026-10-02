@@ -8,7 +8,7 @@ const {
   CALLOUT_DEFAULTS, XBOX_TIMEOUT_MS, callout, calloutGeometry, calloutIcon, conditionIcon, conditionLabel, dateLine,
   designFit, esc, fcScale, fitClock, fitNumber, fontMetrics, forecastRows, hhmm, homePoint, isCalm,
   musicView, newestObservedEchoes, num, strongScrim, parseRainWindow, popText, radarConfig, radarFallback, readRadar, roomView,
-  scalePct, screenLabel, screenStep, tcol, tempText, toDate, volumeToast, xboxInit, xboxStep, xboxView,
+  scalePct, screenLabel, screenStep, tcol, tempText, toDate, twoLines, volumeToast, xboxInit, xboxStep, xboxView,
   CLIMATE_DEBOUNCE_MS, DIAL, FAN_CHIPS, MODE_CHIPS, MODE_COLORS, SHEET_IDLE_MS, arcPath, chipsFor, climateDue,
   climateInit, climateStep, climateToast, dialAngle, dialCentre, dialDrag, dialLive, dialPoint, dialRange, dialStatus, dialTap,
   fillPath, modeColor, tickPath,
@@ -34,6 +34,8 @@ const DEFAULTS = {
   show_callout: false,
   // Today's high and low after the condition, top right. Off by default.
   show_high_low: false,
+  // The current condition (icon and words), top right. Off by default.
+  show_condition: false,
   // Echo pixels at or under this count as none in view (the drawn field is not reliably 0 on a dry day).
   calm_echo_floor: 50,
   callout: { heavy_dbz: CALLOUT_DEFAULTS.heavy_dbz, moderate_dbz: CALLOUT_DEFAULTS.moderate_dbz, hourly_pop: CALLOUT_DEFAULTS.hourly_pop, daily_pop: CALLOUT_DEFAULTS.daily_pop },
@@ -188,7 +190,7 @@ const BOTTOM_CSS = `
   .room { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 0; border-radius: 16px; }
   .room ha-icon { font-size: 30px; color: #c6d1e3; }
   .room .t { font-family: ${DF}; font-weight: 650; font-size: 52px; line-height: 1; }
-  .room .n { font: 500 14px/1 ${TF}; color: #9fb0c8; white-space: nowrap; }
+  .room .n { font: 500 18px/1.12 ${TF}; color: #9fb0c8; white-space: nowrap; text-align: center; }
   .hv { position: relative; display: inline-flex; }
   .room[data-h="cool"] .hv::after, .room[data-h="heat"] .hv::after { content: ""; position: absolute; right: -4px; top: -2px;
     width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 0 2.5px rgb(20 24 40 / .9); }
@@ -638,7 +640,7 @@ class WallHorizonCard extends HTMLElement {
     const h = this._hass;
     const c = this._config;
     const w = h.states[c.weather_entity];
-    const label = conditionLabel(w?.state);
+    const label = c.show_condition === true ? conditionLabel(w?.state) : '';
     const first = this._forecast ? forecastRows(this._forecast.daily, new Date(), 1)[0] : null;
     const today = c.show_high_low === true && first?.label === 'Today' ? first : null;
     const night = h.states[c.sun_entity]?.state === 'below_horizon';
@@ -755,7 +757,7 @@ class WallHorizonCard extends HTMLElement {
       const v = roomView(s);
       const name = r.name || s?.attributes?.friendly_name || r.entity;
       const said = v.temp === '—' ? 'unavailable' : v.temp.replace('°', ' degrees');
-      return `<button type="button" class="room" data-act="room" data-i="${i}" data-h="${v.mode}" aria-label="${esc(name)}, ${said}${v.mode ? `, ${v.mode} mode` : ''}. Opens the thermostat."><span class="hv">${icon(r.icon || 'mdi:thermostat')}</span><span class="t">${v.temp}</span><span class="n">${esc(name)}</span></button>`;
+      return `<button type="button" class="room" data-act="room" data-i="${i}" data-h="${v.mode}" aria-label="${esc(name)}, ${said}${v.mode ? `, ${v.mode} mode` : ''}. Opens the thermostat."><span class="hv">${icon(r.icon || 'mdi:thermostat')}</span><span class="t">${v.temp}</span><span class="n">${twoLines(name).map(esc).join('<br>')}</span></button>`;
     }).join(''));
   }
 
