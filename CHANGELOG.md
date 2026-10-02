@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.3
+
+- Horizon: the weather bubble beside your location is off by default. `show_callout: true` brings it back; the
+  `callout.*` thresholds still apply, and calm mode behaves as before either way.
+- Horizon: today's high and low after the current condition (top right) are off by default; `show_high_low: true`
+  brings them back. The condition line is larger (28px text, 36px icon, from 22px and 28px).
+
 ## 1.2.2
 
 - Horizon: the Xbox control is now just the Xbox logo (the `mdi:microsoft-xbox` path), drawn as glass with a lit

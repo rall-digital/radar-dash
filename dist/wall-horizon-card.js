@@ -30,6 +30,10 @@ const DEFAULTS = {
   // The data-source credit line along the bottom edge. The tile providers' terms ask for it.
   show_attribution: true,
   calm_drift: true,
+  // The weather bubble beside the home dot, and its lead line. Off by default; the callout still drives calm mode.
+  show_callout: false,
+  // Today's high and low after the condition, top right. Off by default.
+  show_high_low: false,
   // Echo pixels at or under this count as none in view (the drawn field is not reliably 0 on a dry day).
   calm_echo_floor: 50,
   callout: { heavy_dbz: CALLOUT_DEFAULTS.heavy_dbz, moderate_dbz: CALLOUT_DEFAULTS.moderate_dbz, hourly_pop: CALLOUT_DEFAULTS.hourly_pop, daily_pop: CALLOUT_DEFAULTS.daily_pop },
@@ -161,9 +165,9 @@ const TOP_CSS = `
     font-family: ${DF}; text-shadow: 0 2px 16px rgb(0 0 0 / .6); }
   .date .wd { font-weight: 650; font-size: 66px; line-height: 1; }
   .date .md { font-weight: 400; font-size: 42px; line-height: 1; color: #c3cee0; }
-  .cond { right: 46px; top: 214px; display: flex; align-items: center; gap: 16px; font: 600 22px/1 ${TF}; color: #c8d3e6;
+  .cond { right: 46px; top: 214px; display: flex; align-items: center; gap: 16px; font: 600 28px/1 ${TF}; color: #c8d3e6;
     white-space: nowrap; text-shadow: 0 2px 12px rgb(0 0 0 / .6); }
-  .cond ha-icon { font-size: 28px; }
+  .cond ha-icon { font-size: 36px; }
   .cond b { font-weight: 750; color: #fff; }
 `;
 
@@ -245,6 +249,7 @@ const CALLOUT_CSS = `
   .call b { display: block; font-family: ${DF}; font-weight: 650; font-size: 29px; line-height: 1; text-wrap: balance; }
   .call span { display: block; margin-top: 5px; font: 500 15px/1.1 ${TF}; color: #aebbd1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .call span:empty { display: none; }
+  #root.nocall .call, #root.nocall .lead { display: none; }
   #root.drifting .drift { animation: drift 80s ease-in-out infinite alternate; will-change: transform; }
   @keyframes drift { from { transform: none; } to { transform: translate(calc(-70px * var(--s, 1)), calc(-26px * var(--s, 1))) scale(1.06); } }
   @media (prefers-reduced-motion: reduce) {
@@ -475,6 +480,7 @@ class WallHorizonCard extends HTMLElement {
       'sheet', 'over', 'shTabs', 'shDial', 'shSvg', 'dTrack', 'dTicks', 'dGlow', 'dFill', 'dNow', 'dNowT', 'dMin', 'dMax', 'dHandle', 'dRing',
       'dNum', 'dStatus', 'shName', 'shModes', 'shFans']) this._el[id] = $(id);
     this._el.steps = [...this._el.shDial.querySelectorAll('.d-step')];
+    this._el.root.classList.toggle('nocall', this._config.show_callout !== true);
     // lostpointercapture ends a drag like pointerup: the tablet can drop a finger's pointerup.
     for (const type of ['pointermove', 'pointerup', 'pointercancel', 'lostpointercapture']) this._el.shSvg.addEventListener(type, (e) => this._onDrag(e));
     this._el.digits = [...this._el.clockDig.querySelectorAll('.d')].map((d) => d.firstChild);
@@ -634,7 +640,7 @@ class WallHorizonCard extends HTMLElement {
     const w = h.states[c.weather_entity];
     const label = conditionLabel(w?.state);
     const first = this._forecast ? forecastRows(this._forecast.daily, new Date(), 1)[0] : null;
-    const today = first?.label === 'Today' ? first : null;
+    const today = c.show_high_low === true && first?.label === 'Today' ? first : null;
     const night = h.states[c.sun_entity]?.state === 'below_horizon';
     setHTML(this._el.cond, `${label ? `${icon(conditionIcon(w.state, night))}<span>${esc(label)}</span>` : ''}${today ? `<b>↑ ${today.hi}°</b><b>↓ ${today.lo}°</b>` : ''}`);
   }
