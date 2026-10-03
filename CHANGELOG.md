@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.6
+
+- Thermostat (Horizon sheet and `wall-thermostat-card`): the − and + are drawn as lines, centred exactly in their
+  circles (the font's glyphs sat a little low).
+- Horizon sheet: the big number no longer drops 8px in Off, Dry and Fan. Its dimmed state reused the room tiles' class,
+  and with it their padding.
+- Thermostat: no "Ultra" fan chip, even when the unit lists `ultra high`.
+
 ## 1.2.5
 
 - Horizon: the Xbox button sits centered over the projector screen's down arrow, instead of against the right edge.

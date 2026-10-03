@@ -11,7 +11,7 @@ const {
   scalePct, screenLabel, screenStep, tcol, tempText, toDate, twoLines, volumeToast, xboxInit, xboxStep, xboxView,
   CLIMATE_DEBOUNCE_MS, DIAL, FAN_CHIPS, MODE_CHIPS, MODE_COLORS, SHEET_IDLE_MS, arcPath, chipsFor, climateDue,
   climateInit, climateStep, climateToast, dialAngle, dialCentre, dialDrag, dialLive, dialPoint, dialRange, dialStatus, dialTap,
-  fillPath, modeColor, tickPath,
+  fillPath, modeColor, tickPath, STEP_MINUS, STEP_PLUS,
 } = await import(new URL(`wall-horizon-lib.js${VERSION}`, import.meta.url).href);
 
 // No entity has a default: a block with nothing set renders nothing and its taps do nothing.
@@ -289,9 +289,10 @@ const SHEET_CSS = `
     border: 2px solid rgb(255 255 255 / .24); display: flex; align-items: center; justify-content: center; font: 500 70px/1 ${DF}; }
   .d-step[data-d="-1"] { left: 170px; }
   .d-step[data-d="1"] { left: 294px; }
+  .d-step svg { position: static; inset: auto; overflow: hidden; width: 40px; height: 40px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; }
   .d-step:disabled { opacity: .35; }
   .sh-dial[data-live="false"] svg, .sh-dial[data-live="false"] .d-num { opacity: .45; }
-  .d-num.room { opacity: .45; }
+  .d-num.dim { opacity: .45; }
   .sh-col { left: 700px; top: 170px; width: 540px; pointer-events: auto; }
   .sh-name { font-family: ${DF}; font-weight: 650; font-size: 60px; line-height: 1; white-space: nowrap; }
   .sh-lbl { margin-top: 44px; font: 700 18px/1 ${TF}; letter-spacing: 2px; color: #7d8aa3; }
@@ -348,8 +349,8 @@ const TEMPLATE = `
           </svg>
           <div class="d-num" id="dNum"></div>
           <div class="d-status" id="dStatus"></div>
-          <button type="button" class="d-step" data-act="step" data-d="-1" aria-label="One degree down">−</button>
-          <button type="button" class="d-step" data-act="step" data-d="1" aria-label="One degree up">+</button>
+          <button type="button" class="d-step" data-act="step" data-d="-1" aria-label="One degree down">${STEP_MINUS}</button>
+          <button type="button" class="d-step" data-act="step" data-d="1" aria-label="One degree up">${STEP_PLUS}</button>
         </div>
         <div class="abs sh-col">
           <div class="sh-name" id="shName"></div>
@@ -1145,7 +1146,8 @@ class WallHorizonCard extends HTMLElement {
     // No target in Off, Dry or Fan: the room temperature, dimmed; else the target or "—".
     const centre = dialCentre(v.mode, t, v.current);
     setText(e.dNum, centre.text);
-    e.dNum.classList.toggle('room', centre.room);
+    // Not 'room': that class belongs to the room tiles, and its padding would push the number down.
+    e.dNum.classList.toggle('dim', centre.room);
   }
 
   // ---- callout and calm mode -----------------------------------------------------------------------

@@ -136,10 +136,10 @@ test('unavailable, unknown or missing entity: nothing to tap', () => {
   }
 });
 
-test('fan modes are the entity\'s own list; none means no fan row', () => {
+test('fan modes are the entity\'s own list, without ultra high; none means no fan row', () => {
   assert.deepEqual(thermostatView(entity('heat', { temperature: 70 }), F).fans, []);
   const v = thermostatView(entity('cool', { temperature: 70, fan_modes: ['on', 'auto', 'ultra high', 'quiet_mode'] }), F);
-  assert.deepEqual(v.fans, [['on', 'On'], ['auto', 'Auto'], ['ultra high', 'Ultra'], ['quiet_mode', 'Quiet mode']]);
+  assert.deepEqual(v.fans, [['on', 'On'], ['auto', 'Auto'], ['quiet_mode', 'Quiet mode']]);
 });
 
 test('service calls: only three climate services, only the configured entity', () => {
