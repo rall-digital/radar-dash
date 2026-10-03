@@ -113,7 +113,8 @@ test('colours and chips: the spec\'s tables, filtered by the entity\'s lists', (
   assert.equal(modeColor('cool', false), '#9aa3b2');
   assert.equal(modeColor('unavailable'), '#9aa3b2');
   assert.deepEqual(MODE_CHIPS, [['off', 'Off'], ['heat_cool', 'Auto'], ['heat', 'Heat'], ['cool', 'Cool'], ['dry', 'Dry'], ['fan_only', 'Fan']]);
-  assert.deepEqual(FAN_CHIPS, [['auto', 'Auto'], ['low', 'Low'], ['medium', 'Med'], ['high', 'High'], ['ultra high', 'Ultra']]);
+  assert.deepEqual(FAN_CHIPS, [['auto', 'Auto'], ['low', 'Low'], ['medium', 'Med'], ['high', 'High']]);
+  assert.deepEqual(chipsFor(FAN_CHIPS, ['auto', 'low', 'medium', 'high', 'ultra high']).map(([v]) => v), ['auto', 'low', 'medium', 'high'], 'no Ultra chip');
   const today = ['off', 'heat_cool', 'heat', 'dry', 'fan_only', 'cool'];
   assert.equal(chipsFor(MODE_CHIPS, today).length, 6);
   assert.deepEqual(chipsFor(MODE_CHIPS, ['off', 'cool']).map(([, l]) => l), ['Off', 'Cool']);

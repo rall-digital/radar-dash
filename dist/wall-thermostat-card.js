@@ -7,7 +7,7 @@ const VERSION = new URL(import.meta.url).search;
 // The lib is fetched with this module's own ?v=, so one update busts both caches.
 const {
   CLIMATE_DEBOUNCE_MS, DIAL, arcPath, climateDue, climateInit, climateStep, climateToast, dialAngle, dialDrag, dialPoint, dialTap,
-  esc, fillPath, fromUnits, num, thermostatCall, thermostatView, tickPath, toUnits,
+  esc, fillPath, fromUnits, num, thermostatCall, thermostatView, tickPath, toUnits, STEP_MINUS, STEP_PLUS,
 } = await import(new URL(`wall-horizon-lib.js${VERSION}`, import.meta.url).href);
 
 const FIELDS = ['temp', 'mode', 'fan'];
@@ -49,6 +49,7 @@ const CSS = `
   button:focus-visible { outline: 2px solid var(--primary-color, #03a9f4); outline-offset: 2px; }
   .step { width: 15cqw; height: 15cqw; min-width: 36px; min-height: 36px; padding: 0; border-radius: 50%; background: transparent;
     border: 1.5px solid var(--divider-color, rgb(127 127 127 / .4)); font-size: 9cqw; line-height: 1; display: flex; align-items: center; justify-content: center; }
+  .step svg { position: static; inset: auto; width: 55%; height: 55%; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
   .lbl { margin: 14px 0 6px; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--secondary-text-color, #9aa3b2); }
   .chips { display: flex; flex-wrap: wrap; gap: 8px; }
   .chip { position: relative; display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 999px; background: transparent;
@@ -77,8 +78,8 @@ const TEMPLATE = `
         <div class="num" id="num"></div>
         <div class="status" id="status"></div>
         <div class="steps">
-          <button type="button" class="step" data-act="step" data-d="-1" aria-label="Lower the target">−</button>
-          <button type="button" class="step" data-act="step" data-d="1" aria-label="Raise the target">+</button>
+          <button type="button" class="step" data-act="step" data-d="-1" aria-label="Lower the target">${STEP_MINUS}</button>
+          <button type="button" class="step" data-act="step" data-d="1" aria-label="Raise the target">${STEP_PLUS}</button>
         </div>
       </div>
       <div id="modeBox"><div class="lbl">Mode</div><div class="chips" id="modes"></div></div>

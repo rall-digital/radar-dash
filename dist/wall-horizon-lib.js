@@ -703,7 +703,12 @@ export const modeColor = (mode, available = true) => (available && MODE_COLORS[m
 
 // [service value, label], in the sheet's order: the mode grid reads Off Auto Heat / Cool Dry Fan.
 export const MODE_CHIPS = [['off', 'Off'], ['heat_cool', 'Auto'], ['heat', 'Heat'], ['cool', 'Cool'], ['dry', 'Dry'], ['fan_only', 'Fan']];
-export const FAN_CHIPS = [['auto', 'Auto'], ['low', 'Low'], ['medium', 'Med'], ['high', 'High'], ['ultra high', 'Ultra']];
+export const FAN_CHIPS = [['auto', 'Auto'], ['low', 'Low'], ['medium', 'Med'], ['high', 'High']];
+// The dial's step buttons draw − and + as strokes: a font's glyphs sit on its maths axis, a little off the circle's centre.
+export const STEP_MINUS = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>';
+export const STEP_PLUS = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14"/></svg>';
+/** Fan modes never offered as a chip, even when the entity lists them. */
+export const HIDDEN_FANS = ['ultra high'];
 
 /** The chips whose value is in the entity's list (hvac_modes or fan_modes). */
 export const chipsFor = (chips, listed) => chips.filter(([v]) => Array.isArray(listed) && listed.includes(v));
@@ -863,7 +868,7 @@ export function thermostatView(stateObj, unit) {
     status: dual ? `Auto ${roundTo(low, digits)}° to ${roundTo(high, digits)}°${now}` : dialStatus({ mode: logicMode, target, current, available, digits }),
     centre: dual ? (current === null ? { text: '—', room: false } : { text: `${roundTo(current, digits)}°`, room: true }) : dialCentre(logicMode, target, current, digits),
     modes: modesListed.map((m) => [m, modeLabels[m] ?? label(m)]),
-    fans: (available && Array.isArray(a.fan_modes) ? a.fan_modes : []).map((f) => [f, fanLabels[f] ?? label(f)]),
+    fans: (available && Array.isArray(a.fan_modes) ? a.fan_modes : []).filter((f) => !HIDDEN_FANS.includes(f)).map((f) => [f, fanLabels[f] ?? label(f)]),
   };
 }
 

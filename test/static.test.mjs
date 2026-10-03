@@ -52,3 +52,8 @@ test('today\'s high and low are off by default, and show_high_low: true brings t
   assert.match(src, /^\s*show_high_low: false,$/m);
   assert.match(src, /const today = c\.show_high_low === true && /);
 });
+
+test('the dimmed centre number does not reuse the room tiles\' class (its padding moved the number down)', () => {
+  assert.match(src, /e\.dNum\.classList\.toggle\('dim', centre\.room\)/);
+  assert.doesNotMatch(src, /\.d-num\.room/);
+});
