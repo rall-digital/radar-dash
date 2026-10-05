@@ -103,7 +103,7 @@ nearest NEXRAD radar. More examples are in [examples/](examples/); every option 
 | `source` | `hybrid` | `hybrid`: one radar's high-resolution data (250 m) near it, MRMS (1 km) in its gaps and beyond. `site`: that radar only. `composite`: the national mosaic. |
 | `basemap` | `hillshade_dark_coast` | Also `hillshade_dark`, `satellite`, `ink`, `night`, or `auto` (day/night by `sun.sun`). |
 | `day_basemap` / `night_basemap` | `ink` / `night` | What `basemap: auto` shows. |
-| `palette` | `smooth` | Also `nws`, `universal_blue`, `twc`, `n0q`. |
+| `palette` | `smooth` | Also `nws`, `universal_blue`, `twc`, `n0q`, `neon`. |
 | `frame_count` | `15` | Observed frames, from the last 60 minutes. |
 | `frame_delay` | `400` | Milliseconds per frame. |
 | `forecast_hours` | `2` | HRRR forecast frames after "now", drawn desaturated. `0` turns them off. |

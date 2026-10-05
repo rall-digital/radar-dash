@@ -50,7 +50,7 @@ export function creditsFor(basemap, labels) {
   const base = (BASEMAPS[basemap] || []).map((b) => b.attribution);
   return [...new Set([...base, ...(labels ? [LABELS_CREDIT] : []), RADAR_CREDIT])];
 }
-const PALETTES = ['smooth', 'nws', 'universal_blue', 'twc', 'n0q'];
+const PALETTES = ['smooth', 'nws', 'universal_blue', 'twc', 'n0q', 'neon'];
 
 // The rain fade window while the satellite basemap shows (see fadeFor): starts at 8 dBZ and is full at 12.
 // Measured on live rain over forest (ATX) and farmland (DMX): against
@@ -211,6 +211,9 @@ const RV_TWC =
 // MetPy NWSReflectivity.tbl: 15 colours for 5-dBZ bins starting at 5 dBZ.
 const NWS_COLORS = ['00ecec', '01a0f6', '0000f6', '00ff00', '00c800', '009000', 'ffff00', 'e7c000', 'ff9000', 'ff0000', 'd60000', 'c00000', 'ff00ff', '9955c9', '000000'];
 
+// neon: [dBZ, colour] stops, plum through magenta, pink, orange and yellow to white; brighter means heavier.
+const NEON_STOPS = [[5, '5a1a6e'], [15, 'a2009c'], [25, 'e6007e'], [35, 'ff4f8b'], [45, 'ff8a3d'], [55, 'ffc21a'], [65, 'fff3a0'], [70, 'ffffff']];
+
 // ---- palettes -------------------------------------------------------------
 
 function hexLut(hex) {
@@ -246,6 +249,18 @@ function paletteColor(name, dbz, idx) {
     const table = name === 'twc' ? RV_TWC : RV_UNIVERSAL_BLUE;
     const row = Math.max(0, Math.min(127, Math.floor(dbz) + 32));
     return [0, 2, 4, 6].map((o) => parseInt(table.substr(row * 8 + o, 2), 16));
+  }
+  if (name === 'neon') {
+    const last = NEON_STOPS.length - 1;
+    if (dbz <= NEON_STOPS[0][0]) return [...rgbAt(NEON_STOPS[0][1], 0), 255];
+    if (dbz >= NEON_STOPS[last][0]) return [...rgbAt(NEON_STOPS[last][1], 0), 255];
+    const k = NEON_STOPS.findIndex(([d]) => d > dbz) - 1;
+    const [d0, h0] = NEON_STOPS[k];
+    const [d1, h1] = NEON_STOPS[k + 1];
+    const a = rgbAt(h0, 0);
+    const b = rgbAt(h1, 0);
+    const f = (dbz - d0) / (d1 - d0);
+    return [0, 1, 2].map((j) => Math.round(a[j] + (b[j] - a[j]) * f)).concat(255);
   }
   // smooth: the NWS colours as stops at 5, 10, ... 70 dBZ, interpolated continuously.
   const stops = NWS_COLORS.length - 2; // the table's last entry (black, >= 75) is not used as a stop
@@ -2057,4 +2072,4 @@ if (globalThis.customElements) {
   });
 }
 
-export { WallRadarCard, N0Q_PALETTE, LCREF_PALETTE, siblingsLoaded };
+export { WallRadarCard, N0Q_PALETTE, LCREF_PALETTE, siblingsLoaded, paletteColor };
