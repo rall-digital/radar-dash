@@ -82,7 +82,7 @@ const DEFAULTS = {
   blend_km: 40,
   clutter_dbz: 20,
   clutter_radius_px: 16,
-  palette: 'smooth',
+  palette: 'neon',
   smooth: true,
   min_dbz: 5,
   fade_dbz: 15,
