@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.2.7
 
 - Radar: new `palette: neon`, from plum through magenta, pink, orange and yellow to white; brighter means heavier.
 
