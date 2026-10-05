@@ -13,7 +13,9 @@ test('neon hits its stops, interpolates between them and clamps at both ends', (
   assert.deepEqual(paletteColor('neon', 80), [255, 255, 255, 255]);
 });
 
-test('setConfig accepts palette: neon and still rejects an unknown palette', () => {
+test('neon is the default palette; setConfig accepts others and still rejects an unknown palette', () => {
+  assert.equal(configure({}).palette, 'neon');
+  assert.equal(configure({ palette: 'smooth' }).palette, 'smooth');
   assert.equal(configure({ palette: 'neon' }).palette, 'neon');
   assert.throws(() => configure({ palette: 'nope' }), /palette must be one of .*neon/);
 });
