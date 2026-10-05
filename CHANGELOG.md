@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Radar: new `palette: neon`, from plum through magenta, pink, orange and yellow to white; brighter means heavier.
+
 ## 1.2.6
 
 - Thermostat (Horizon sheet and `wall-thermostat-card`): the − and + are drawn as lines, centred exactly in their

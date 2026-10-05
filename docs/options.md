@@ -37,7 +37,7 @@ Rules that hold for all three cards:
 | `basemap` | `hillshade_dark_coast` \| `hillshade_dark` \| `satellite` \| `ink` \| `night` \| `auto` | `hillshade_dark_coast` | `auto` reads `sun.sun` (optional) | `auto` shows `day_basemap` while the sun is up and `night_basemap` after sunset. A missing `sun.sun` counts as day. |
 | `day_basemap` | any basemap except `auto` | `ink` | none | Used by `basemap: auto`. |
 | `night_basemap` | any basemap except `auto` | `night` | none | Used by `basemap: auto`. |
-| `palette` | `smooth` \| `nws` \| `universal_blue` \| `twc` \| `n0q` | `smooth` | none | Radar colours. |
+| `palette` | `smooth` \| `nws` \| `universal_blue` \| `twc` \| `n0q` \| `neon` | `smooth` | none | Radar colours. `neon` runs from plum through magenta, pink, orange and yellow to white: brighter means heavier. |
 | `smooth` | boolean | `true` | none | Blur the dBZ field before colouring, for soft edges. |
 | `min_dbz` | number or `false` | `5` | none | Transparent below this. `false` shows everything. |
 | `fade_dbz` | number or `false` | `15` | none | Alpha ramps from `min_dbz` to full here. Equal to `min_dbz` gives a hard cut. |
