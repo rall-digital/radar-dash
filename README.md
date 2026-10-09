@@ -111,9 +111,13 @@ nearest NEXRAD radar. More examples are in [examples/](examples/); every option 
 | `show_labels` | `false` | Place names. |
 | `show_attribution` | `true` | The data-source credit line on the map. See "Data sources" before turning it off. |
 | `show_status` | `false` | A small chip when the data is stale or the radar site is offline. |
+| `interactive` | `false` | `true`: + / − buttons, drag, pinch, wheel and double-tap. `buttons`: the buttons only. |
 | `watchdog` | `true` | Self-healing for a page that is never reloaded. See below. |
 
-The map is static: no dragging, zooming or controls. It is meant to be looked at, not operated.
+By default the map is static: no dragging, zooming or controls. It is meant to be looked at, not operated.
+`interactive: true` lets a person zoom (4 to 11) and pan it; `interactive: buttons` gives only the + / − buttons, so a
+swipe over a card in a scrolling view still scrolls the page. A resize puts home back where `home_position` says, at
+the current zoom. While home is off screen, the numbers at home (`data-home-dbz`, `data-rain-at`) are unknown.
 
 ### How it behaves
 
