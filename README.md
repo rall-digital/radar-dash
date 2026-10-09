@@ -239,6 +239,10 @@ How it handles what thermostats differ on:
 - Keep the screen on and let the watchdog handle stale data. You should not need a scheduled page reload.
 - Older or slower tablets: lower `frame_count`, set `forecast_hours: 0`, keep `radar_retina: false`.
   The defaults hold about 23 frames of canvases in memory.
+- Large or HiDPI screens: every frame keeps one 256 px canvas (256 KB) per radar tile on screen, and `detail: 1`
+  (the default) asks for four times the tiles of `detail: 0`. On one full-screen 2x display the card held about
+  390 MB of canvases and the Chrome tab crashed; `detail: 0` with `frame_count: 8` held about 125 MB. The cost is
+  sharpness: at 2x, `detail: 0` draws the radar at half the screen's resolution.
 - After updating the card files, reload the page once on the wall device.
 
 ## Data sources

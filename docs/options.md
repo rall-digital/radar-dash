@@ -43,7 +43,7 @@ Rules that hold for all three cards:
 | `fade_dbz` | number or `false` | `15` | none | Alpha ramps from `min_dbz` to full here. Equal to `min_dbz` gives a hard cut. |
 | `satellite_fade_dbz` | number or `false` | `8` | none | Over the `satellite` basemap the fade starts here instead, so faint rain does not blend into green land. |
 | `opacity` | number 0..1 | `0.8` | none | Radar opacity. |
-| `detail` | integer | `1` | none | Tiles are requested at `zoom + detail`. |
+| `detail` | integer | `1` | none | Tiles are requested at `zoom + detail`. `1` uses four times the tiles and canvas memory of `0`, for twice the sharpness (README, Kiosk tips). |
 | `radar_retina` | boolean | `false` | none | Request radar at retina zoom on HiDPI screens (4x the tiles and memory). |
 | `show_color_bar` | boolean | `true` | none | The 8 px dBZ strip across the top. |
 | `show_progress` | boolean | `true` | none | A 2 px loop-position line: solid for observed frames, dotted for forecast. |
