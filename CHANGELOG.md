@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Radar: the card fires `wall-radar-map` (`detail: { map, L }`) when it builds its map, so a page can add its own
+  Leaflet layers (docs/options.md).
+
 ## 1.2.8
 
 - Radar: `neon` is the default palette. `palette: smooth` brings back the previous colours.
