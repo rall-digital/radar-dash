@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Radar: `interactive` (default `false`). `true` adds + / − buttons and drag, pinch, wheel and double-tap zoom
+  (4 to 11); `buttons` adds only the buttons. Warning outlines are redrawn for the new view.
+
 ## 1.2.8
 
 - Radar: `neon` is the default palette. `palette: smooth` brings back the previous colours.
