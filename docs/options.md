@@ -50,6 +50,9 @@ Rules that hold for all three cards:
 | `show_labels` | boolean | `false` | none | Place names (CARTO). Off means those tiles are never requested. |
 | `show_attribution` | boolean | `true` | none | The data-source credit line on the map: the basemap's providers, OpenStreetMap and CARTO when labels are on, and NOAA/NWS via IEM. The providers' terms ask for it; if you turn it off, credit them elsewhere on the display. |
 | `show_status` | boolean | `false` | none | A small chip when data is stale or the site is offline. The text is always in `data-status`. |
+| `layers` | list | `[]` | none | Overlays that start on: `clouds`, `wind`, `lightning`, `fires`, `smoke`, `quakes` (README, Layers). `smoke` needs `hms_url`. |
+| `show_layer_picker` | boolean | `false` | none | A Layers button (top right) that switches each overlay and the radar. The choice is kept in the browser (`localStorage`) and wins over `layers`. |
+| `hms_url` | string | unset | none | Where your copy of NOAA HMS `smoke.json` and `fires.json` is served, e.g. `/local/hms` ([examples/hms/](../examples/hms/)). |
 
 ### Loop
 
@@ -98,6 +101,8 @@ The card fires no events. A parent card, a test or an installer reads these. Abs
 | `data-home-dbz`, `data-now-dbz` | dBZ at the centre: frame on screen, and newest observed frame. |
 | `data-rain-at`, `data-rain-peak-dbz` | First forecast frame at or above `echo_dbz` at the centre (ISO time), and the highest forecast dBZ there. |
 | `data-home-warnings` | JSON list of warnings covering the centre: `[{"phenomena":"TO","expire_utc":"..."}]`. |
+| `data-home-fires` | With the fires layer on: JSON list of fires within 25 mi of the centre, nearest first: `[{"name":"Example","acres":1200,"contained":40,"mi":12,"dir":"NE"}]`. Empty while there are none. |
+| `data-home-quakes` | With the quakes layer on: JSON list of M2.5+ quakes in the last day within 100 mi of the centre, newest first: `[{"mag":3.1,"place":"...","time":"...","mi":40,"dir":"W"}]`. |
 | `data-watchdog` | The watchdog's last action and time. Absent until it acts. |
 | `data-holes` | Debugging: tiles missing from loaded frames and their retries. |
 

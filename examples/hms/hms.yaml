@@ -1,0 +1,18 @@
+# NOAA HMS smoke plumes and satellite fire detections for wall-radar-card's smoke and fires layers.
+# Copy fetch-hms.py to /config/scripts/ and this file to /config/packages/ (packages: !include_dir_named packages
+# under homeassistant: in configuration.yaml), restart once, then set `hms_url: /local/hms` on the card.
+shell_command:
+  hms_fetch: python3 /config/scripts/fetch-hms.py --out /config/www/hms
+
+automation:
+  - id: radar_dash_hms_fetch
+    alias: Radar - Fetch NOAA Smoke And Fires
+    description: Keeps /local/hms/smoke.json and fires.json current for wall-radar-card.
+    mode: single
+    triggers:
+      - trigger: time_pattern
+        minutes: /20
+      - trigger: homeassistant
+        event: start
+    actions:
+      - action: shell_command.hms_fetch

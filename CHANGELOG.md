@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Radar: optional map layers, from `wall-radar-layers.js` (loaded only when used): `clouds` (GOES), `wind`
+  (Open-Meteo), `lightning` (Blitzortung.org), `fires` (NIFC), `smoke` (NOAA HMS, through `hms_url`) and `quakes`
+  (USGS). `layers` picks which start on; `show_layer_picker` adds a Layers button. Fires and quakes near home are
+  in `data-home-fires` and `data-home-quakes`. examples/hms/ serves NOAA HMS from Home Assistant.
+
 ## 1.2.8
 
 - Radar: `neon` is the default palette. `palette: smooth` brings back the previous colours.

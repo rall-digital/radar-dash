@@ -100,6 +100,11 @@ const DEFAULTS = {
   show_labels: false,
   show_attribution: true,
   show_status: false,
+  // Overlays from wall-radar-layers.js (loaded only when one of these is set): which start on, and the picker.
+  layers: [],
+  show_layer_picker: false,
+  // Where your own copy of NOAA HMS smoke.json / fires.json is served (HMS has no CORS; examples/hms/).
+  hms_url: '',
   // Self-healing on a page that is never reloaded (see _watch). 0 turns a step off.
   watchdog: true,
   watchdog_restart_min: 20,
@@ -127,6 +132,7 @@ const RELOAD_KEY = 'wall-radar-card:last-reload';
 const MRMS_MAX_LAG_MIN = 10; // an MRMS frame older than this relative to its N0B scan is not used
 const FORECAST_OPACITY = 0.75; // forecast frames: lower opacity ...
 const FORECAST_DESATURATE = 0.4; // ... and partly desaturated
+const OVERLAYS = ['clouds', 'wind', 'lightning', 'fires', 'smoke', 'quakes']; // wall-radar-layers.js LAYERS, less rain
 const SMOOTH_RADIUS = 2; // box blur radius in source pixels, applied twice
 const SMOOTH_NODATA = 44; // -10 dBZ on the n0q index scale
 // Composite layers exist for the current image plus 5-minute offsets out to 55 minutes.
@@ -828,6 +834,11 @@ class WallRadarCard extends (globalThis.HTMLElement ?? class {}) {
     if (!BASEMAPS[c.basemap] && c.basemap !== 'auto') throw new Error(`wall-radar-card: basemap must be one of ${Object.keys(BASEMAPS).join(', ')}, auto`);
     if (!BASEMAPS[c.day_basemap]) throw new Error(`wall-radar-card: day_basemap must be one of ${Object.keys(BASEMAPS).join(', ')}`);
     if (!BASEMAPS[c.night_basemap]) throw new Error(`wall-radar-card: night_basemap must be one of ${Object.keys(BASEMAPS).join(', ')}`);
+    if (c.layers === null || c.layers === undefined) c.layers = [];
+    if (!Array.isArray(c.layers) || c.layers.some((k) => !OVERLAYS.includes(k))) throw new Error(`wall-radar-card: layers must be a list of ${OVERLAYS.join(', ')}`);
+    c.hms_url = c.hms_url ? String(c.hms_url) : '';
+    if (c.layers.includes('smoke') && !c.hms_url) throw new Error('wall-radar-card: the smoke layer needs hms_url (NOAA HMS has no CORS; see examples/hms/)');
+    c.show_layer_picker = !!c.show_layer_picker;
     if (!PALETTES.includes(c.palette)) throw new Error(`wall-radar-card: palette must be one of ${PALETTES.join(', ')}`);
     // The centre and the site are optional: unset, they come from hass.config and the nearest site (_centre, _resolveSite).
     for (const k of ['center_latitude', 'center_longitude']) {
@@ -1056,6 +1067,13 @@ class WallRadarCard extends (globalThis.HTMLElement ?? class {}) {
       this._placeHome(); // keep home where home_position puts it
     });
     this._resizeObserver.observe(el);
+    // Optional overlays (wall-radar-layers.js), fetched only when the config asks for them
+    if (c.layers.length || c.show_layer_picker) {
+      import(new URL(`wall-radar-layers.js${VERSION}`, BASE).href).then(
+        (m) => this._map === map && m.attachLayers(this, map, L, c),
+        (err) => console.warn('wall-radar-card: wall-radar-layers.js did not load; the radar works without it', err),
+      );
+    }
   }
 
   _detailOptions() {

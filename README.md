@@ -111,9 +111,36 @@ nearest NEXRAD radar. More examples are in [examples/](examples/); every option 
 | `show_labels` | `false` | Place names. |
 | `show_attribution` | `true` | The data-source credit line on the map. See "Data sources" before turning it off. |
 | `show_status` | `false` | A small chip when the data is stale or the radar site is offline. |
+| `layers` | `[]` | Overlays to show: `clouds`, `wind`, `lightning`, `fires`, `smoke`, `quakes`. See "Layers". |
+| `show_layer_picker` | `false` | A Layers button in the top right that switches the overlays and the radar itself. |
 | `watchdog` | `true` | Self-healing for a page that is never reloaded. See below. |
 
 The map is static: no dragging, zooming or controls. It is meant to be looked at, not operated.
+
+### Layers
+
+Optional overlays, each from a free public source, drawn over the basemap with the radar:
+
+| layer | what | source, refresh |
+|---|---|---|
+| `clouds` | Satellite clouds, white over the map: GOES GeoColor, kept only where infrared says cold (so bright desert is not cloud) | NOAA GOES via NASA GIBS, 10 min |
+| `wind` | Streaks drifting with the current 10 m wind, brighter at 20 mph and over | Open-Meteo, hourly |
+| `lightning` | Strikes as they are located: a white flash, fading to amber over 15 minutes | Blitzortung.org live stream |
+| `fires` | Wildfires of 10 acres and up that are not contained: perimeter, name, size, containment; a tap shows details | NIFC (WFIGS), 10 min |
+| `smoke` | Smoke plumes, light to heavy, as haze. Needs `hms_url` | NOAA HMS, a few analyses a day |
+| `quakes` | M2.5+ in the last day: a ring by magnitude, the last hour pulsing; hover or tap for details | USGS, 5 min |
+
+`layers` says which start on. `show_layer_picker: true` adds a Layers button (top right) that switches each one and
+the radar (Rain) on and off; the choice is kept in that browser. The layers file (`wall-radar-layers.js`) loads
+only when one of these is set, and a layer that is off fetches nothing. NOAA HMS sends no CORS headers, so `smoke`
+(and the satellite fire detections under `fires`) need a copy that Home Assistant serves: see
+[examples/hms/](examples/hms/) and set `hms_url: /local/hms`.
+
+```yaml
+type: custom:wall-radar-card
+show_layer_picker: true
+layers: [fires, quakes]
+```
 
 ### How it behaves
 
@@ -253,11 +280,18 @@ the providers elsewhere on your display.
 | Satellite imagery (`satellite`, `ink`, and half of `hillshade_dark_coast`) | [Esri](https://www.esri.com/) World Imagery | `Imagery: Esri, Vantor, Earthstar Geographics, and the GIS User Community` |
 | Hillshade (`hillshade_dark`, `hillshade_dark_coast`) | Esri World Hillshade Dark | `Hillshade: Esri, Vantor, Airbus DS, USGS, NGA, NASA, CGIAR, N Robinson, NCEAS, NLS, OS, NMA, Geodatastyrelsen, Rijkswaterstaat, GSA, Geoland, FEMA, Intermap, and the GIS user community` |
 | Night basemap (`night`) | [NASA GIBS](https://www.earthdata.nasa.gov/engage/open-data-services-software/earthdata-developer-portal/gibs-api), VIIRS Black Marble 2016 | `Night lights: NASA Black Marble via NASA GIBS` |
+| Clouds layer | [NASA GIBS](https://www.earthdata.nasa.gov/engage/open-data-services-software/earthdata-developer-portal/gibs-api), NOAA GOES-East/West ABI GeoColor and Band 13 | `Clouds: NOAA GOES via NASA GIBS` |
+| Wind layer | [Open-Meteo](https://open-meteo.com/) (free for non-commercial use; each grid point counts toward its daily limit) | `Wind: Open-Meteo` |
+| Lightning layer | [Blitzortung.org](https://www.blitzortung.org/), a volunteer network | `Lightning: Blitzortung.org` |
+| Fires layer | [NIFC](https://data-nifc.opendata.arcgis.com/) WFIGS incidents and perimeters | `Fires: NIFC` |
+| Smoke layer, fire detections | [NOAA HMS](https://www.ospo.noaa.gov/products/land/hms.html), through your own copy (`hms_url`) | `Smoke: NOAA HMS`, `Fire detections: NOAA HMS` |
+| Earthquakes layer | [USGS](https://earthquake.usgs.gov/earthquakes/feed/) | `Earthquakes: USGS` |
 | Place labels (only with `show_labels`) | [CARTO](https://carto.com/attributions) basemaps, built on [OpenStreetMap](https://www.openstreetmap.org/copyright) data (ODbL) | `Labels: © OpenStreetMap contributors, © CARTO` |
 
 The Esri lines are each service's own copyright text as it read on 2026-09-30. The credits are plain text, not
 links: on a wall display a tapped link would navigate the kiosk away from the dashboard. The links are here instead.
-The same text is on the element as `data-credits`, whether or not it is drawn.
+The same text is on the element as `data-credits`, whether or not it is drawn (the layers' credits are added to
+the line on the map only).
 
 These are volunteer-run or public services. IEM in particular is a university project that serves this data to
 everyone for free: keep the default poll rates, and if you build something heavier on top, read
