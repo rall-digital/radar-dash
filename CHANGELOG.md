@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Radar: a poll that lands while the first frames are still loading no longer fetches the finished ones again, so
+  the loop holds each scan once (a duplicate took the place of a real step: 4 distinct times in an 8-frame loop).
+
 ## 1.2.8
 
 - Radar: `neon` is the default palette. `palette: smooth` brings back the previous colours.
