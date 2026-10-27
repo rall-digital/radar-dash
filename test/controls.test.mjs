@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  XBOX_TIMEOUT_MS, xboxInit, xboxStep, xboxView, screenStep, screenLabel, volumeToast, roomView, musicView,
+  XBOX_TIMEOUT_MS, xboxInit, xboxStep, xboxView, screenStep, screenLabel, volumeToast, roomView, musicView, playerView, progressAt, clockText, volumeView, volumeSet,
 } from '../dist/wall-horizon-lib.js';
 
 // Runs events through xboxStep and returns the final state plus every call made.
@@ -139,4 +139,44 @@ test('a report of the old state does not end Turning off…', () => {
   const a = run('on', [{ type: 'tap' }, { type: 'entity', value: 'on' }]);
   assert.equal(a.s.phase, 'stopping');
   assert.equal(xboxView(a.s).sub, 'Turning off…');
+});
+
+test('playerView covers playing and paused, nothing else', () => {
+  const a = { media_title: 'Song', media_artist: 'Band', media_album_name: 'LP', entity_picture: '/p', media_duration: 200, media_position: 50, media_position_updated_at: '2026-01-01T00:00:00Z' };
+  const v = playerView({ state: 'playing', attributes: a });
+  assert.deepEqual({ ...v, updatedAt: undefined }, { playing: true, title: 'Song', artist: 'Band', album: 'LP', picture: '/p', duration: 200, position: 50, updatedAt: undefined });
+  assert.equal(playerView({ state: 'paused', attributes: a }).playing, false);
+  for (const state of ['idle', 'off', 'unavailable', 'standby']) assert.equal(playerView({ state, attributes: a }), null);
+  assert.equal(playerView(undefined), null);
+});
+
+test('progressAt advances while playing, holds while paused, and clamps', () => {
+  const t0 = Date.parse('2026-01-01T00:00:00Z');
+  const base = { playing: true, duration: 200, position: 50, updatedAt: t0 };
+  assert.equal(progressAt(base, t0 + 10000).pos, 60);
+  assert.equal(progressAt({ ...base, playing: false }, t0 + 10000).pos, 50);
+  assert.equal(progressAt(base, t0 + 999000).pos, 200);
+  assert.equal(progressAt(base, t0 - 5000).pos, 50);
+  assert.equal(progressAt({ ...base, duration: null }, t0), null);
+  assert.equal(progressAt({ ...base, position: null }, t0), null);
+  assert.equal(progressAt(null, t0), null);
+});
+
+test('clockText', () => {
+  assert.equal(clockText(0), '0:00');
+  assert.equal(clockText(65.9), '1:05');
+  assert.equal(clockText(3725), '1:02:05');
+  assert.equal(clockText(null), '0:00');
+});
+
+test('volumeView and volumeSet', () => {
+  assert.deepEqual(volumeView({ state: 'on', attributes: { volume_level: 0.4, is_volume_muted: true } }), { available: true, off: false, level: 0.4, muted: true });
+  assert.deepEqual(volumeView({ state: 'off', attributes: { volume_level: 0.4 } }), { available: false, off: true, level: null, muted: false });
+  assert.equal(volumeView({ state: 'unavailable', attributes: {} }).available, false);
+  assert.equal(volumeView(undefined).available, false);
+  assert.equal(volumeSet(0.4349), 0.43);
+  assert.equal(volumeSet(-1), 0);
+  assert.equal(volumeSet(2), 1);
+  assert.equal(volumeSet(0.9, 0.6), 0.6);
+  assert.equal(volumeSet('x'), 0);
 });
