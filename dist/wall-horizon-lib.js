@@ -567,6 +567,51 @@ export function musicView(stateObj) {
   return { title: a.media_title || '', artist: a.media_artist || '', picture: a.entity_picture || '' };
 }
 
+/** The music sheet's player: null unless something is playing, paused or buffering. */
+export function playerView(stateObj) {
+  if (!stateObj || !['playing', 'paused', 'buffering'].includes(stateObj.state)) return null;
+  const a = stateObj.attributes || {};
+  return {
+    playing: stateObj.state === 'playing',
+    title: a.media_title || '',
+    artist: a.media_artist || '',
+    album: a.media_album_name || '',
+    picture: a.entity_picture || '',
+    duration: num(a.media_duration),
+    position: num(a.media_position),
+    updatedAt: Date.parse(a.media_position_updated_at) || null,
+  };
+}
+
+/** Where the track is at `now` (ms): the reported position plus the time since it was reported while playing. Null when unknown. */
+export function progressAt(view, now) {
+  if (!view || !(view.duration > 0) || view.position === null) return null;
+  const since = view.playing && view.updatedAt ? Math.max(0, (now - view.updatedAt) / 1000) : 0;
+  const pos = Math.min(view.duration, Math.max(0, view.position + since));
+  return { pos, duration: view.duration, frac: pos / view.duration };
+}
+
+/** Seconds as m:ss (h:mm:ss from an hour). */
+export function clockText(sec) {
+  const t = Math.max(0, Math.floor(num(sec) ?? 0));
+  const s = String(t % 60).padStart(2, '0');
+  return t >= 3600 ? `${Math.floor(t / 3600)}:${String(Math.floor(t / 60) % 60).padStart(2, '0')}:${s}` : `${Math.floor(t / 60)}:${s}`;
+}
+
+/** The receiver on the music sheet: its level (0 to 1), mute, and whether it can be told anything (not off or unreachable). */
+export function volumeView(stateObj) {
+  const so = stateObj?.state;
+  const available = !!stateObj && so !== 'unavailable' && so !== 'unknown' && so !== 'off';
+  const level = num(stateObj?.attributes?.volume_level);
+  return { available, off: so === 'off', level: available ? level : null, muted: stateObj?.attributes?.is_volume_muted === true };
+}
+
+/** A volume to send: rounded to whole percent and held to 0..max (`max` is the loudest the wall may set). */
+export function volumeSet(level, max = 1) {
+  const cap = Math.min(1, Math.max(0, num(max) ?? 1));
+  return Math.round(Math.min(cap, Math.max(0, num(level) ?? 0)) * 100) / 100;
+}
+
 // ---- thermostat dial --------------------------------------------------------------------------
 // Dial units are the SVG viewBox,
 // 460 square, drawn 560 design px square. Angles are degrees clockwise from 12 o'clock.

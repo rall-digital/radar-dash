@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.9
+
+- Horizon: tap the now-playing pill to open a music sheet, in the style of the thermostat sheet: album art, title,
+  artist, album, a progress bar, previous / play-pause / next, and a volume control for your receiver (a slider with
+  - and + buttons, mute, and the level). It closes after 30 s without a touch, with the ✕, or when playback stops.
+- New options `music_volume` (a `media_player`, for example a Denon receiver) and `music_volume_max` (the loudest the
+  slider may set, 0 to 1, default 1). Without `music_volume` the sheet has no volume section.
+
 ## 1.2.8
 
 - Radar: `neon` is the default palette. `palette: smooth` brings back the previous colours.

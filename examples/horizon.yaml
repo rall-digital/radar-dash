@@ -29,7 +29,10 @@ cards:
 
     # ---- optional household controls; delete what you do not have -------------------------------
     # Now-playing pill with a pause button, shown while this player is "playing".
-    music: media_player.living_room_speaker
+    music: media_player.spotify
+    # Tapping the pill opens a music sheet; this receiver's volume is set from it (optional, e.g. a Denon).
+    music_volume: media_player.denon_avr
+    music_volume_max: 0.8                            # optional: the loudest the slider may set (0 to 1)
     # A switch drawn as an "Xbox" pill (see examples/packages/scene_switch.yaml for one way to make it).
     xbox:
       switch: switch.game_scene

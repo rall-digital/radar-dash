@@ -115,7 +115,9 @@ resource; it needs no resource of its own. With nothing but `type` it shows the 
 | `weather_entity` | entity | unset: no condition line, no forecast rows | `weather` (must support daily and hourly forecasts) | Condition (with `show_condition`), today's high/low (with `show_high_low`), a 4-day forecast, and input to the callout. |
 | `sun_entity` | entity | `sun.sun` | `sun` | Day/night icon and the callout's "clear tonight" line. |
 | `rooms` | list of up to 3 `{ entity, icon, name }` | `[]` | `climate` | Room temperatures along the bottom; a tap opens a thermostat sheet (target, mode, fan). `icon` (an `mdi:` name) and `name` are optional; a name with spaces is shown on two lines, split at the space nearest the middle. |
-| `music` | entity | unset: no pill | `media_player` | While it is `playing`: a now-playing pill with a pause button, in place of the `xbox`/`screen` controls. |
+| `music` | entity | unset: no pill | `media_player` | While it is `playing`: a now-playing pill with a pause button, in place of the `xbox`/`screen` controls. Tapping the pill opens the music sheet: art, title, artist, album, progress, previous / play-pause / next. It stays open while the player is playing or paused, and closes after 30 s without a touch. |
+| `music_volume` | entity | unset: the sheet has no volume section | `media_player` | The receiver (for example a Denon AVR) the sheet's volume slider, - / + buttons and mute control. Uses `volume_set` and `volume_mute`; shows "is off" and disables the controls while the receiver is off. |
+| `music_volume_max` | number, above 0 up to 1 | `1` | none | The loudest level the sheet can set; the slider's right end is this level. |
 | `xbox.switch` | entity | unset: no button | `switch` | A toggle drawn as a round Xbox-logo button, with no label or status text: gray when off, green when on. `turn_on`/`turn_off` are called; its state confirms. |
 | `xbox.now_playing` | entity | unset | `sensor` (text state) | Read out by screen readers while the switch is on; not drawn. |
 | `screen.down` / `screen.up` | entity | unset: that button is not drawn | `automation` | Each is an arrow-only button (up, then down) beside a two-line "Projector Screen" label; it triggers its automation (`automation.trigger`, conditions skipped). |
@@ -154,6 +156,7 @@ weather_entity: weather.forecast_home
 | `temperature_entity` | a `sensor.*` with `device_class: temperature` that is outdoors; if unclear, ask, or leave unset |
 | `rooms` | up to 3 `climate.*` entities; if more than 3, ask which |
 | `music` | a `media_player.*` the household plays music on; optional |
+| `music_volume` | a `media_player.*` receiver (such as a Denon) for the music sheet's volume; only if the human names it |
 | everything under `xbox`, `screen`, `volume`, `select`, `rain_window` | leave unset unless the human asks for it and names the entities |
 
 ## wall-thermostat-card

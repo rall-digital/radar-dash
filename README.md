@@ -77,7 +77,7 @@ check that `/hacsfiles/radar-dash/leaflet.js` opens in your browser; if it does 
 
 1. Copy everything in `dist/` (the `fonts/` folder included) to `/config/www/radar-dash/` on your Home Assistant.
 2. **Settings > Dashboards > three-dot menu > Resources > Add resource**: URL
-   `/local/radar-dash/wall-radar-card.js?v=1.2.8`, type **JavaScript module**. That one resource loads all three
+   `/local/radar-dash/wall-radar-card.js?v=1.2.9`, type **JavaScript module**. That one resource loads all three
    cards.
 3. Reload the browser, then add the card as above.
 
@@ -180,7 +180,9 @@ This is a household display that was built for one home and then made configurab
 | `weather_entity` | unset | `weather` | Condition line, 4-day forecast, callout. |
 | `sun_entity` | `sun.sun` | `sun` | Day/night. |
 | `rooms` | `[]` | `climate` (up to 3) | Room temperatures and thermostat sheet. |
-| `music` | unset | `media_player` | Now-playing pill. |
+| `music` | unset | `media_player` | Now-playing pill; a tap opens the music sheet (transport, progress, volume). |
+| `music_volume` | unset | `media_player` | The receiver the music sheet's volume controls (for example a Denon). |
+| `music_volume_max` | `1` | | The loudest level the music sheet can set, 0 to 1. |
 | `show_attribution` | `true` | | The credit line along the bottom edge. |
 | `show_callout` | `false` | | The weather bubble beside your location. |
 | `show_condition` | `false` | | The current condition (icon and words), top right. |

@@ -11,7 +11,7 @@ const {
   scalePct, screenLabel, screenStep, tcol, tempText, toDate, twoLines, volumeToast, xboxInit, xboxStep, xboxView,
   CLIMATE_DEBOUNCE_MS, DIAL, FAN_CHIPS, MODE_CHIPS, MODE_COLORS, SHEET_IDLE_MS, arcPath, chipsFor, climateDue,
   climateInit, climateStep, climateToast, dialAngle, dialCentre, dialDrag, dialLive, dialPoint, dialRange, dialStatus, dialTap,
-  fillPath, modeColor, tickPath, STEP_MINUS, STEP_PLUS,
+  fillPath, modeColor, tickPath, STEP_MINUS, STEP_PLUS, clockText, playerView, progressAt, volumeSet, volumeView,
 } = await import(new URL(`wall-horizon-lib.js${VERSION}`, import.meta.url).href);
 
 // No entity has a default: a block with nothing set renders nothing and its taps do nothing.
@@ -27,6 +27,9 @@ const DEFAULTS = {
   volume: { down: '', up: '', targets: [], labels: [] },
   select: { remote: '', command: 'select', num_repeats: 1, delay_secs: 0.4, label: 'Apple TV' },
   music: '',
+  // The receiver (a media_player) whose volume the music sheet sets, and the loudest level it may set (0 to 1).
+  music_volume: '',
+  music_volume_max: 1,
   // The data-source credit line along the bottom edge. The tile providers' terms ask for it.
   show_attribution: true,
   calm_drift: true,
@@ -54,6 +57,11 @@ const NOW_X = [((8 - 70) * 460) / 560, ((690 - 70) * 460) / 560];
 // The thermostat's three fields per room, and the service each one calls.
 const FIELDS = ['temp', 'mode', 'fan'];
 const SERVICES = { temp: ['set_temperature', 'temperature'], mode: ['set_hvac_mode', 'hvac_mode'], fan: ['set_fan_mode', 'fan_mode'] };
+// The music sheet's volume: a tap on - or + moves it this far, a drag sends at most this often, and a level just set
+// is shown for this long while the receiver catches up.
+const VOL_STEP = 0.02;
+const VOL_SEND_MS = 150;
+const VOL_HOLD_MS = 3000;
 const reducedMotion = () => !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 const icon = (name) => `<ha-icon icon="${esc(name)}"></ha-icon>`;
 const setHTML = (el, html) => {
@@ -223,6 +231,7 @@ const THEATER_CSS = `
   .np { grid-column: 1 / -1; box-sizing: border-box; height: 152px; display: flex; align-items: center; gap: 14px; padding: 0 18px; border-radius: 20px;
     background: rgb(255 255 255 / .08); border: 1px solid rgb(255 255 255 / .13); }
   .np .art { width: 72px; height: 72px; flex: none; border-radius: 12px; object-fit: cover; background: rgb(255 255 255 / .1); }
+  .np .open { flex: 1 1 auto; min-width: 0; align-self: stretch; display: flex; align-items: center; gap: 14px; }
   .np .xl { flex: 1 1 auto; min-width: 0; }
   .np .xl b { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-family: ${DF}; font-weight: 650; font-size: 22px; line-height: 1.15; }
   .np .xl span { display: block; margin-top: 6px; font: 500 16px/1.2 ${TF}; color: #aebbd1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -312,6 +321,51 @@ const SHEET_CSS = `
   }
 `;
 
+const MUSIC_CSS = `
+  #music { position: absolute; inset: 0; z-index: 4; --mc: #1ed760; }
+  #music[hidden] { display: none; }
+  #root.sheet-open #ui, #root.sheet-open #geoWrap { visibility: hidden; }
+  .m-art { left: 70px; top: 150px; width: 540px; height: 540px; border-radius: 28px; object-fit: cover; background: rgb(255 255 255 / .08);
+    box-shadow: 0 24px 60px rgb(0 0 0 / .5); }
+  .m-col { left: 700px; top: 150px; width: 540px; pointer-events: auto; }
+  .m-title { font-family: ${DF}; font-weight: 650; font-size: 46px; line-height: 1.1; display: -webkit-box; -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2; overflow: hidden; }
+  .m-artist { margin-top: 12px; font: 600 28px/1.2 ${TF}; color: #c8d3e6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .m-album { margin-top: 6px; font: 500 22px/1.2 ${TF}; color: #7d8aa3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .m-prog { margin-top: 30px; height: 8px; border-radius: 4px; background: rgb(255 255 255 / .14); overflow: hidden; }
+  .m-prog i { display: block; height: 100%; width: 100%; background: var(--mc); transform: scaleX(0); transform-origin: 0 50%; }
+  .m-times { margin-top: 10px; display: flex; justify-content: space-between; font: 600 20px/1 ${TF}; color: #7d8aa3; }
+  .m-times:empty, .m-prog[hidden] { display: none; }
+  .m-tr { margin-top: 22px; display: flex; align-items: center; justify-content: center; gap: 36px; }
+  .m-btn { width: 96px; height: 96px; border-radius: 50%; background: rgb(255 255 255 / .07); border: 2px solid rgb(255 255 255 / .24);
+    display: flex; align-items: center; justify-content: center; }
+  .m-btn ha-icon { font-size: 50px; }
+  .m-btn.play { width: 124px; height: 124px; background: #f3f6fb; border-color: #f3f6fb; color: #07101f; }
+  .m-btn.play ha-icon { font-size: 70px; }
+  .m-btn:disabled { opacity: .35; }
+  .m-lbl { margin-top: 30px; font: 700 18px/1 ${TF}; letter-spacing: 2px; color: #7d8aa3; display: flex; align-items: center; gap: 14px; }
+  .m-lbl b { flex: 1 1 auto; min-width: 0; font: 700 18px/1 ${TF}; color: #c8d3e6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .m-mute { flex: none; height: 52px; padding: 0 20px; border-radius: 999px; display: flex; align-items: center; gap: 8px; background: rgb(5 9 18 / .84);
+    border: 1px solid rgb(255 255 255 / .16); font: 600 22px/1 ${TF}; letter-spacing: 0; color: #c8d3e6; }
+  .m-mute ha-icon { font-size: 28px; }
+  .m-mute[aria-pressed="true"] { background: color-mix(in srgb, #ff6b6b 26%, transparent); border: 2px solid #ff6b6b; color: #fff; }
+  .m-mute:disabled { opacity: .4; }
+  .m-btn svg { width: 40px; height: 40px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; }
+  .m-vol { margin-top: 14px; display: flex; align-items: center; gap: 16px; }
+  .m-vol .m-btn { width: 80px; height: 80px; flex: none; }
+  .m-vol .m-btn ha-icon { font-size: 40px; }
+  .m-vol .m-btn[aria-pressed="true"] { background: color-mix(in srgb, #ff6b6b 26%, transparent); border-color: #ff6b6b; }
+  .m-slider { flex: 1 1 auto; height: 80px; position: relative; touch-action: none; pointer-events: auto; }
+  .m-slider::before { content: ""; position: absolute; left: 0; right: 0; top: 29px; height: 22px; border-radius: 11px; background: rgb(255 255 255 / .12); }
+  .m-fill { position: absolute; left: 0; top: 29px; height: 22px; border-radius: 11px; background: var(--mc); width: calc(28px + (100% - 56px) * var(--f, 0)); }
+  .m-knob { position: absolute; top: 12px; width: 56px; height: 56px; left: calc((100% - 56px) * var(--f, 0)); border-radius: 50%; background: #fff;
+    border: 4px solid rgb(3 6 13 / .5); box-sizing: border-box; }
+  .m-slider[data-live="false"] { opacity: .4; }
+  .m-slider.sending .m-knob { box-shadow: 0 0 0 5px color-mix(in srgb, var(--mc) 40%, transparent); }
+  .m-pct { width: 90px; flex: none; text-align: right; font: 650 36px/1 ${DF}; }
+  .m-note { margin-top: 12px; font: 600 20px/1.2 ${TF}; color: #7d8aa3; min-height: 20px; }
+`;
+
 const TEMPLATE = `
   <div id="root">
     <div class="drift" id="mapWrap"></div>
@@ -361,6 +415,35 @@ const TEMPLATE = `
         </div>
       </div>
     </div>
+    <div id="music" hidden>
+      <div class="sh-bg" data-act="close"></div>
+      <div class="stage">
+        <button type="button" class="abs sh-x" data-act="close" aria-label="Close">✕</button>
+        <img class="abs m-art" id="mArt" alt="">
+        <div class="abs m-col">
+          <div class="m-title" id="mTitle"></div>
+          <div class="m-artist" id="mArtist"></div>
+          <div class="m-album" id="mAlbum"></div>
+          <div class="m-prog" id="mProg"><i id="mBar"></i></div>
+          <div class="m-times" id="mTimes"></div>
+          <div class="m-tr">
+            <button type="button" class="m-btn" data-act="m-prev" aria-label="Previous track"><ha-icon icon="mdi:skip-previous"></ha-icon></button>
+            <button type="button" class="m-btn play" id="mPlay" data-act="music" aria-label="Pause"><ha-icon icon="mdi:pause"></ha-icon></button>
+            <button type="button" class="m-btn" data-act="m-next" aria-label="Next track"><ha-icon icon="mdi:skip-next"></ha-icon></button>
+          </div>
+          <div id="mVolBox">
+            <div class="m-lbl"><span>VOLUME</span><b id="mVolName"></b><button type="button" class="m-mute" id="mMute" data-act="m-mute" aria-pressed="false"><ha-icon icon="mdi:volume-off"></ha-icon>Mute</button></div>
+            <div class="m-vol">
+              <button type="button" class="m-btn" data-act="m-vol" data-d="-1" aria-label="Volume down">${STEP_MINUS}</button>
+              <div class="m-slider" id="mSlider" role="slider" tabindex="0" aria-label="Volume" aria-valuemin="0" aria-valuemax="100"><div class="m-fill" id="mFill"></div><div class="m-knob" id="mKnob"></div></div>
+              <button type="button" class="m-btn" data-act="m-vol" data-d="1" aria-label="Volume up">${STEP_PLUS}</button>
+              <div class="m-pct" id="mPct"></div>
+            </div>
+            <div class="m-note" id="mNote"></div>
+          </div>
+        </div>
+      </div>
+    </div>
     <div class="stage" id="over"></div>
   </div>`;
 
@@ -406,6 +489,9 @@ class WallHorizonCard extends HTMLElement {
     }
     if (!Array.isArray(c.volume.targets) || c.volume.targets.some((t) => typeof t !== 'string')) throw new Error('wall-horizon-card: volume.targets must be a list of media_player entities');
     if (!Array.isArray(c.volume.labels)) throw new Error('wall-horizon-card: volume.labels must be a list of names, one per target');
+    if (typeof c.music_volume !== 'string') throw new Error('wall-horizon-card: music_volume must be a media_player entity');
+    c.music_volume_max = Number(c.music_volume_max);
+    if (!(c.music_volume_max > 0 && c.music_volume_max <= 1)) throw new Error('wall-horizon-card: music_volume_max must be a number above 0 and up to 1');
     c.calm_echo_floor = Number(c.calm_echo_floor);
     if (!(c.calm_echo_floor >= 0)) throw new Error('wall-horizon-card: calm_echo_floor must be a number, 0 or more');
     // HA re-sends an identical config on many re-renders; only rebuild when it changed.
@@ -458,6 +544,7 @@ class WallHorizonCard extends HTMLElement {
     clearInterval(this._clock);
     this._clock = null;
     this._closeSheet();
+    this._closeMusic();
     clearTimeout(this._climTimer);
     this._climTimer = null;
     this._unsubscribe();
@@ -474,18 +561,32 @@ class WallHorizonCard extends HTMLElement {
     this._resizeObserver?.disconnect();
     this._radar = null;
     this._sheet = null;
+    this._music = false;
     this._drag = null;
+    this._vdrag = null;
+    this._vol = null;
     clearTimeout(this._idleTimer);
-    this.shadowRoot.innerHTML = `<style>${BASE_CSS}${TOP_CSS}${BOTTOM_CSS}${THEATER_CSS}${CALLOUT_CSS}${SHEET_CSS}</style>${TEMPLATE}`;
+    clearTimeout(this._volTimer);
+    this.shadowRoot.innerHTML = `<style>${BASE_CSS}${TOP_CSS}${BOTTOM_CSS}${THEATER_CSS}${CALLOUT_CSS}${SHEET_CSS}${MUSIC_CSS}</style>${TEMPLATE}`;
     const $ = (id) => this.shadowRoot.getElementById(id);
     this._el = {};
     for (const id of ['root', 'scrims', 'mapWrap', 'home', 'lead', 'call', 'callIcon', 'callTxt', 'callHead', 'callSub', 'ui', 'clock', 'clockDig', 'date', 'wd', 'md', 'temp', 'tempDig', 'cond', 'fc', 'rooms', 'theater', 'credit',
       'sheet', 'over', 'shTabs', 'shDial', 'shSvg', 'dTrack', 'dTicks', 'dGlow', 'dFill', 'dNow', 'dNowT', 'dMin', 'dMax', 'dHandle', 'dRing',
-      'dNum', 'dStatus', 'shName', 'shModes', 'shFans']) this._el[id] = $(id);
+      'dNum', 'dStatus', 'shName', 'shModes', 'shFans',
+      'music', 'mArt', 'mTitle', 'mArtist', 'mAlbum', 'mProg', 'mBar', 'mTimes', 'mPlay', 'mVolBox', 'mVolName', 'mMute', 'mSlider', 'mFill', 'mKnob', 'mPct', 'mNote']) this._el[id] = $(id);
     this._el.steps = [...this._el.shDial.querySelectorAll('.d-step')];
+    this._el.mVolBtns = [...this._el.music.querySelectorAll('[data-act="m-vol"]')];
     this._el.root.classList.toggle('nocall', this._config.show_callout !== true);
     // lostpointercapture ends a drag like pointerup: the tablet can drop a finger's pointerup.
     for (const type of ['pointermove', 'pointerup', 'pointercancel', 'lostpointercapture']) this._el.shSvg.addEventListener(type, (e) => this._onDrag(e));
+    const sl = this._el.mSlider;
+    for (const type of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'lostpointercapture']) sl.addEventListener(type, (e) => this._onVolDrag(e));
+    sl.addEventListener('keydown', (e) => {
+      const d = { ArrowUp: 1, ArrowRight: 1, ArrowDown: -1, ArrowLeft: -1 }[e.key];
+      if (!d) return;
+      e.preventDefault();
+      this._volStep(d);
+    });
     this._el.digits = [...this._el.clockDig.querySelectorAll('.d')].map((d) => d.firstChild);
     this._resizeObserver = new ResizeObserver(([e]) => this._onResize(e.contentRect.width, e.contentRect.height));
     this._resizeObserver.observe(this._el.root);
@@ -595,6 +696,7 @@ class WallHorizonCard extends HTMLElement {
       const cl = this._clim[c.rooms[this._sheet].entity];
       this._region('sheet', [this._sheet, ...c.rooms.map((r) => st(r.entity)), cl.temp, cl.mode, cl.fan], () => this._renderSheet());
     }
+    if (this._music) this._region('music', [st(c.music), st(c.music_volume), this._vol], () => this._renderMusic());
     this._region('callout', [st(c.weather_entity), st(c.sun_entity), st(c.rain_window), this._forecast, this._forecastFailed, this._radarSummary, this._minute], () => this._renderCallout());
   }
 
@@ -610,6 +712,7 @@ class WallHorizonCard extends HTMLElement {
   /** Checks every second; touches the digit text nodes only when the minute changes. */
   _tick() {
     if (!this._el) return;
+    if (this._music) this._paintProgress();
     const now = new Date();
     const t = hhmm(now);
     if (t === this._shown) return;
@@ -770,7 +873,7 @@ class WallHorizonCard extends HTMLElement {
     const music = c.music ? musicView(h.states[c.music]) : null;
     if (music) {
       const pic = music.picture && h.hassUrl ? h.hassUrl(music.picture) : music.picture;
-      setHTML(this._el.theater, `<div class="np">${pic ? `<img class="art" alt="" src="${esc(pic)}">` : '<span class="art"></span>'}<span class="xl"><b>${esc(music.title)}</b><span>${esc(music.artist)}</span></span><button type="button" class="pp" data-act="music" aria-label="Pause">${icon('mdi:pause')}</button></div>`);
+      setHTML(this._el.theater, `<div class="np"><button type="button" class="open" data-act="music-open" aria-label="${esc(`Now playing: ${music.title}${music.artist ? `, ${music.artist}` : ''}. Opens the music controls.`)}">${pic ? `<img class="art" alt="" src="${esc(pic)}">` : '<span class="art"></span>'}<span class="xl"><b>${esc(music.title)}</b><span>${esc(music.artist)}</span></span></button><button type="button" class="pp" data-act="music" aria-label="Pause">${icon('mdi:pause')}</button></div>`);
       return;
     }
     // Each control is drawn only when its entity is set: no switch, no pill; no automation, no screen button.
@@ -853,6 +956,22 @@ class WallHorizonCard extends HTMLElement {
         break;
       case 'close':
         this._closeSheet();
+        this._closeMusic();
+        break;
+      case 'music-open':
+        this._openMusic();
+        break;
+      case 'm-prev':
+        this._call('media_player', 'media_previous_track', {}, { entity_id: c.music }, null, "Couldn't reach the player");
+        break;
+      case 'm-next':
+        this._call('media_player', 'media_next_track', {}, { entity_id: c.music }, null, "Couldn't reach the player");
+        break;
+      case 'm-mute':
+        this._call('media_player', 'volume_mute', { is_volume_muted: !volumeView(this._hass.states[c.music_volume]).muted }, { entity_id: c.music_volume }, null, "Couldn't reach the receiver");
+        break;
+      case 'm-vol':
+        this._volStep(Number(el.dataset.d));
         break;
       case 'step':
         this._step(Number(el.dataset.d));
@@ -990,6 +1109,16 @@ class WallHorizonCard extends HTMLElement {
    * for SHEET_IDLE_MS has lost its pointerup, so it ends (up), and the close flushes its setpoint.
    */
   _idleFire() {
+    if (this._music) {
+      const v = this._vdrag;
+      if (v) {
+        const quiet = Date.now() - v.moved;
+        if (quiet < SHEET_IDLE_MS) return this._sheetIdle(SHEET_IDLE_MS - quiet);
+        this._volEnd();
+      }
+      this._closeMusic();
+      return;
+    }
     const d = this._drag;
     if (d) {
       const quiet = Date.now() - d.moved;
@@ -1035,6 +1164,7 @@ class WallHorizonCard extends HTMLElement {
 
   /** Any touch on the sheet restarts the idle close. On the dial: the handle starts a drag, the track jumps there first. */
   _onPointerDown(e) {
+    if (this._music && this._el?.music.contains(e.target)) this._sheetIdle();
     if (this._sheet === null || !this._el?.sheet.contains(e.target)) return;
     this._sheetIdle();
     if (!this._el.shSvg.contains(e.target) || this._drag) return;
@@ -1148,6 +1278,170 @@ class WallHorizonCard extends HTMLElement {
     setText(e.dNum, centre.text);
     // Not 'room': that class belongs to the room tiles, and its padding would push the number down.
     e.dNum.classList.toggle('dim', centre.room);
+  }
+
+  // ---- music sheet --------------------------------------------------------------------------------
+
+  /** The now-playing pill opens it: the track, transport, and the receiver's volume. It closes when nothing is playing or paused. */
+  _openMusic() {
+    if (!playerView(this._hass?.states[this._config.music])) return;
+    this._closeSheet();
+    this._music = true;
+    this._deps.music = null;
+    this._el.music.hidden = false;
+    this._el.mVolBox.hidden = !this._config.music_volume;
+    this._el.root.classList.add('sheet-open');
+    this._sheetIdle();
+    this._render();
+  }
+
+  _closeMusic() {
+    if (!this._music) return;
+    this._music = false;
+    this._vdrag = null;
+    this._vol = null;
+    clearTimeout(this._volTimer);
+    clearTimeout(this._volHold);
+    this._volTimer = null;
+    this._el.music.hidden = true;
+    this._el.root.classList.remove('sheet-open');
+    clearTimeout(this._idleTimer);
+  }
+
+  _volName() {
+    const c = this._config;
+    return this._hass.states[c.music_volume]?.attributes?.friendly_name || c.music_volume;
+  }
+
+  /** The level the sheet shows: the one just set until the receiver reports it, else the receiver's. */
+  _volShown() {
+    return this._vol ? this._vol.level : volumeView(this._hass.states[this._config.music_volume]).level;
+  }
+
+  _volStep(d) {
+    const level = this._volShown();
+    if (level === null || !volumeView(this._hass.states[this._config.music_volume]).available) return;
+    this._volSet(level + d * VOL_STEP, true);
+  }
+
+  /** A new level: shown now, sent now (a step or a release) or at most every VOL_SEND_MS (a drag). */
+  _volSet(level, now = false) {
+    const lvl = volumeSet(level, this._config.music_volume_max);
+    if (this._vol?.level === lvl && !now) return;
+    this._vol = { level: lvl, until: Date.now() + VOL_HOLD_MS };
+    clearTimeout(this._volHold);
+    this._volHold = setTimeout(() => {
+      if (this._vol && Date.now() >= this._vol.until && !this._vdrag) {
+        this._vol = null;
+        this._render();
+      }
+    }, VOL_HOLD_MS + 50);
+    if (now) {
+      clearTimeout(this._volTimer);
+      this._volTimer = null;
+      this._volSend();
+    } else if (!this._volTimer) {
+      this._volTimer = setTimeout(() => {
+        this._volTimer = null;
+        this._volSend();
+      }, VOL_SEND_MS);
+    }
+    this._render();
+  }
+
+  async _volSend() {
+    const level = this._vol?.level;
+    if (level === undefined || !this._config.music_volume) return;
+    const ok = await this._call('media_player', 'volume_set', { volume_level: level }, { entity_id: this._config.music_volume }, null, "Couldn't reach the receiver");
+    if (!ok && this._vol?.level === level) {
+      this._vol = null;
+      this._render();
+    }
+  }
+
+  _volEnd() {
+    this._vdrag = null;
+    clearTimeout(this._volTimer);
+    this._volTimer = null;
+    this._volSend();
+    this._sheetIdle();
+    this._render();
+  }
+
+  /** The slider: a press jumps there, a drag follows. The fraction runs between the knob's centre at each end. */
+  _onVolDrag(e) {
+    if (e.type === 'pointerdown') {
+      if (this._vdrag || !this._hass || !volumeView(this._hass.states[this._config.music_volume]).available) return;
+      e.preventDefault();
+      try {
+        this._el.mSlider.setPointerCapture?.(e.pointerId);
+      } catch {
+        /* a synthetic pointer: the drag still works while it stays over the slider */
+      }
+      this._vdrag = { id: e.pointerId, moved: Date.now() };
+      this._volFromPointer(e);
+      return;
+    }
+    const d = this._vdrag;
+    if (!d || e.pointerId !== d.id) return;
+    if (e.type === 'pointermove') {
+      d.moved = Date.now();
+      this._volFromPointer(e);
+      return;
+    }
+    this._volEnd();
+  }
+
+  _volFromPointer(e) {
+    const b = this._el.mSlider.getBoundingClientRect();
+    const pad = (28 * b.width) / Math.max(1, this._el.mSlider.offsetWidth); // the stage is scaled: 28 layout px in screen px
+    const f = Math.min(1, Math.max(0, (e.clientX - b.left - pad) / Math.max(1, b.width - 2 * pad)));
+    this._volSet(f * this._config.music_volume_max);
+  }
+
+  _renderMusic() {
+    const c = this._config;
+    const h = this._hass;
+    const e = this._el;
+    const p = playerView(h.states[c.music]);
+    if (!p) return this._closeMusic();
+    const pic = p.picture && h.hassUrl ? h.hassUrl(p.picture) : p.picture;
+    if (pic && e.mArt.getAttribute('src') !== pic) e.mArt.setAttribute('src', pic);
+    e.mArt.style.visibility = pic ? '' : 'hidden';
+    setText(e.mTitle, p.title);
+    setText(e.mArtist, p.artist);
+    setText(e.mAlbum, p.album);
+    const play = e.mPlay.firstElementChild;
+    const want = p.playing ? 'mdi:pause' : 'mdi:play';
+    if (play.getAttribute('icon') !== want) play.setAttribute('icon', want);
+    e.mPlay.setAttribute('aria-label', p.playing ? 'Pause' : 'Play');
+    this._paintProgress();
+
+    if (!c.music_volume) return;
+    const vv = volumeView(h.states[c.music_volume]);
+    if (this._vol && !this._vdrag && (Date.now() >= this._vol.until || (vv.level !== null && Math.abs(vv.level - this._vol.level) < 0.005))) this._vol = null;
+    const level = this._vol ? this._vol.level : vv.level;
+    const frac = level === null ? 0 : Math.min(1, level / c.music_volume_max);
+    e.mSlider.dataset.live = String(vv.available);
+    e.mSlider.style.setProperty('--f', frac.toFixed(4));
+    e.mSlider.classList.toggle('sending', !!this._vol);
+    e.mSlider.setAttribute('aria-valuenow', String(level === null ? 0 : Math.round(level * 100)));
+    e.mSlider.setAttribute('aria-disabled', String(!vv.available));
+    setText(e.mPct, level === null ? '—' : `${Math.round(level * 100)}%`);
+    setText(e.mVolName, this._volName());
+    e.mMute.setAttribute('aria-pressed', String(vv.muted));
+    e.mMute.disabled = !vv.available;
+    for (const b of e.mVolBtns) b.disabled = !vv.available;
+    setText(e.mNote, vv.off ? `${this._volName()} is off` : !vv.available ? `Can't reach ${this._volName()}` : '');
+  }
+
+  /** The bar and the two times, from the reported position; called every second while the sheet is open. */
+  _paintProgress() {
+    const e = this._el;
+    const pr = this._hass ? progressAt(playerView(this._hass.states[this._config.music]), Date.now()) : null;
+    e.mProg.hidden = !pr;
+    setHTML(e.mTimes, pr ? `<span>${clockText(pr.pos)}</span><span>${clockText(pr.duration)}</span>` : '');
+    if (pr) e.mBar.style.transform = `scaleX(${pr.frac.toFixed(4)})`;
   }
 
   // ---- callout and calm mode -----------------------------------------------------------------------
