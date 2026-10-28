@@ -1056,6 +1056,8 @@ class WallRadarCard extends (globalThis.HTMLElement ?? class {}) {
       this._placeHome(); // keep home where home_position puts it
     });
     this._resizeObserver.observe(el);
+    // For a page that adds its own Leaflet layers: the map is built (it fires 'unload' when the card tears it down).
+    this.dispatchEvent(new CustomEvent('wall-radar-map', { detail: { map, L } }));
   }
 
   _detailOptions() {

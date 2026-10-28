@@ -82,7 +82,7 @@ Rules that hold for all three cards:
 
 ### Outputs (`data-*` attributes on the element)
 
-The card fires no events. A parent card, a test or an installer reads these. Absent or empty means unknown.
+A parent card, a test or an installer reads these. Absent or empty means unknown.
 
 | attribute | value |
 |---|---|
@@ -100,6 +100,20 @@ The card fires no events. A parent card, a test or an installer reads these. Abs
 | `data-home-warnings` | JSON list of warnings covering the centre: `[{"phenomena":"TO","expire_utc":"..."}]`. |
 | `data-watchdog` | The watchdog's last action and time. Absent until it acts. |
 | `data-holes` | Debugging: tiles missing from loaded frames and their retries. |
+
+### Event: `wall-radar-map`
+
+Fired on the element each time the card builds its map, with `detail: { map, L }` (the Leaflet map and the Leaflet
+it loaded). A page can add its own layers to it; they go away with the map, which fires Leaflet's `unload` when
+the card tears it down (a config change, the watchdog, or a minute after it leaves the page) and builds a new one
+later. Listen before the card is connected, or check `card._map` for a map that already exists.
+
+```js
+card.addEventListener('wall-radar-map', (e) => {
+  const { map, L } = e.detail;
+  L.circleMarker([35.47, -97.52], { radius: 6 }).addTo(map);
+});
+```
 
 ## wall-horizon-card
 
