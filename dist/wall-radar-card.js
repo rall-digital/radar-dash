@@ -1741,7 +1741,7 @@ class WallRadarCard extends (globalThis.HTMLElement ?? class {}) {
         this._pending.delete(key);
       }
     }
-    const have = new Set([...this._frames.map((f) => f.key), ...this._pending.keys()]);
+    const have = new Set([...this._frames.map((f) => f.key), ...(this._fcStaged || []).map((f) => f.key), ...this._pending.keys()]);
     const fresh = wanted.filter((s) => s.sources && !have.has(s.key));
     const now = Date.now();
     this._dropForecast((f) => !keys.size || f.time <= now || (!fresh.length && !this._fcStaged && !keys.has(f.key)));
@@ -1864,9 +1864,11 @@ class WallRadarCard extends (globalThis.HTMLElement ?? class {}) {
   }
 
   _addFrame(frame) {
-    // One frame per scan: a second copy would take the place of a real step in the loop.
+    // One frame per scan: a second copy would take the place of a real step in the loop. Only the list this
+    // frame is going into counts: a scan that is looping while a replacement set stages still belongs in that set.
     const dupe = (list) => list && list.some((f) => f.key === frame.key);
-    if (dupe(this._frames) || dupe(this._staged) || dupe(this._fcStaged)) {
+    const into = frame.forecast ? this._fcStaged || this._frames : this._staged || this._frames;
+    if (dupe(into)) {
       queueMicrotask(() => frame.layer.remove()); // deferred, as in _preload: this runs inside the layer's 'load'
       return;
     }
