@@ -43,13 +43,14 @@ Rules that hold for all three cards:
 | `fade_dbz` | number or `false` | `15` | none | Alpha ramps from `min_dbz` to full here. Equal to `min_dbz` gives a hard cut. |
 | `satellite_fade_dbz` | number or `false` | `8` | none | Over the `satellite` basemap the fade starts here instead, so faint rain does not blend into green land. |
 | `opacity` | number 0..1 | `0.8` | none | Radar opacity. |
-| `detail` | integer | `1` | none | Tiles are requested at `zoom + detail`. |
+| `detail` | integer | `1` | none | Tiles are requested at `zoom + detail`. `1` uses four times the tiles of `0`; on a 2x (HiDPI) screen that is also four times the canvas memory, for twice the sharpness (at 1x the canvas memory is the same and the picture is no sharper) (README, Kiosk tips). |
 | `radar_retina` | boolean | `false` | none | Request radar at retina zoom on HiDPI screens (4x the tiles and memory). |
 | `show_color_bar` | boolean | `true` | none | The 8 px dBZ strip across the top. |
 | `show_progress` | boolean | `true` | none | A 2 px loop-position line: solid for observed frames, dotted for forecast. |
 | `show_labels` | boolean | `false` | none | Place names (CARTO). Off means those tiles are never requested. |
 | `show_attribution` | boolean | `true` | none | The data-source credit line on the map: the basemap's providers, OpenStreetMap and CARTO when labels are on, and NOAA/NWS via IEM. The providers' terms ask for it; if you turn it off, credit them elsewhere on the display. |
 | `show_status` | boolean | `false` | none | A small chip when data is stale or the site is offline. The text is always in `data-status`. |
+| `interactive` | `false`, `true` or `buttons` | `false` | none | `true`: + / − buttons (bottom right), drag, pinch, wheel and double-tap, zoom 4 to 11. `buttons`: the buttons only, so a swipe still scrolls the page. Each zoom loads the tiles of every frame in the loop again. While on, `data-home-dbz` and the other echo numbers are approximate: they are taken from the tiles as loaded and are not recomputed when the view changes. Not for Horizon, which ignores `radar.interactive`. |
 
 ### Loop
 
@@ -82,7 +83,7 @@ Rules that hold for all three cards:
 
 ### Outputs (`data-*` attributes on the element)
 
-The card fires no events. A parent card, a test or an installer reads these. Absent or empty means unknown.
+A parent card, a test or an installer reads these. Absent or empty means unknown.
 
 | attribute | value |
 |---|---|
@@ -100,6 +101,20 @@ The card fires no events. A parent card, a test or an installer reads these. Abs
 | `data-home-warnings` | JSON list of warnings covering the centre: `[{"phenomena":"TO","expire_utc":"..."}]`. |
 | `data-watchdog` | The watchdog's last action and time. Absent until it acts. |
 | `data-holes` | Debugging: tiles missing from loaded frames and their retries. |
+
+### Event: `wall-radar-map`
+
+Fired on the element each time the card builds its map, with `detail: { map, L }` (the Leaflet map and the Leaflet
+it loaded). A page can add its own layers to it; they go away with the map, which fires Leaflet's `unload` when
+the card tears it down (a config change, the watchdog, or a minute after it leaves the page) and builds a new one
+later. Listen before the card is connected, or read `card.map` (the Leaflet map, read-only; `null` before the map is built and after it is torn down) for a map that already exists. Layers added to a wall map should not respond to touch (use `interactive: false` on markers and shapes): a wall screen is looked at, not operated.
+
+```js
+card.addEventListener('wall-radar-map', (e) => {
+  const { map, L } = e.detail;
+  L.circleMarker([35.47, -97.52], { radius: 6, interactive: false }).addTo(map);
+});
+```
 
 ## wall-horizon-card
 

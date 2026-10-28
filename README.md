@@ -77,7 +77,7 @@ check that `/hacsfiles/radar-dash/leaflet.js` opens in your browser; if it does 
 
 1. Copy everything in `dist/` (the `fonts/` folder included) to `/config/www/radar-dash/` on your Home Assistant.
 2. **Settings > Dashboards > three-dot menu > Resources > Add resource**: URL
-   `/local/radar-dash/wall-radar-card.js?v=1.2.9`, type **JavaScript module**. That one resource loads all three
+   `/local/radar-dash/wall-radar-card.js?v=1.2.10`, type **JavaScript module**. That one resource loads all three
    cards.
 3. Reload the browser, then add the card as above.
 
@@ -111,9 +111,13 @@ nearest NEXRAD radar. More examples are in [examples/](examples/); every option 
 | `show_labels` | `false` | Place names. |
 | `show_attribution` | `true` | The data-source credit line on the map. See "Data sources" before turning it off. |
 | `show_status` | `false` | A small chip when the data is stale or the radar site is offline. |
+| `interactive` | `false` | `true`: + / − buttons, drag, pinch, wheel and double-tap. `buttons`: the buttons only. |
 | `watchdog` | `true` | Self-healing for a page that is never reloaded. See below. |
 
-The map is static: no dragging, zooming or controls. It is meant to be looked at, not operated.
+By default the map is static: no dragging, zooming or controls. It is meant to be looked at, not operated.
+`interactive: true` lets a person zoom (4 to 11) and pan it; `interactive: buttons` gives only the + / − buttons, so a
+swipe over a card in a scrolling view still scrolls the page. Not for Horizon, which ignores `radar.interactive`. A resize puts home back where `home_position` says, at
+the current zoom. While home is off screen, the numbers at home (`data-home-dbz`, `data-rain-at`) are unknown.
 
 ### How it behaves
 
@@ -241,6 +245,11 @@ How it handles what thermostats differ on:
 - Keep the screen on and let the watchdog handle stale data. You should not need a scheduled page reload.
 - Older or slower tablets: lower `frame_count`, set `forecast_hours: 0`, keep `radar_retina: false`.
   The defaults hold about 23 frames of canvases in memory.
+- Large or HiDPI screens: on a 2x (HiDPI) screen every frame keeps one 256 px canvas (256 KB) per radar tile on
+  screen, and `detail: 1` (the default) asks for four times the tiles of `detail: 0`. At 1x, `detail: 1` still asks for
+  four times the tiles, but the canvases are the same size as at `detail: 0` and the picture is no sharper. On one full-screen 2x display the card held about
+  390 MB of canvases and the Chrome tab crashed; `detail: 0` with `frame_count: 8` held about 125 MB. The cost is
+  sharpness: at 2x, `detail: 0` draws the radar at half the screen's resolution.
 - After updating the card files, reload the page once on the wall device.
 
 ## Data sources
