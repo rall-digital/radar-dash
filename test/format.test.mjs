@@ -212,3 +212,9 @@ test('twoLines splits a room name at the space nearest the middle', () => {
   assert.deepEqual(twoLines('Kids Bonus Room'), ['Kids Bonus', 'Room']);
   assert.deepEqual(twoLines('climate.den'), ['climate.den']);
 });
+
+test('radarConfig strips interactive: the embedded radar of a wall layout is never interactive', () => {
+  const cfg = radarConfig({ zoom_level: 8, interactive: true });
+  assert.equal('interactive' in cfg, false);
+  assert.equal(cfg.zoom_level, 8);
+});

@@ -1223,6 +1223,11 @@ class WallRadarCard extends (globalThis.HTMLElement ?? class {}) {
     this._pollTimer = this._loopTimer = this._warnTimer = null;
   }
 
+  // The Leaflet map once built, for a page that adds its own layers (see the wall-radar-map event). Read-only.
+  get map() {
+    return this._map || null;
+  }
+
   _teardown() {
     this._stopTimers();
     this._resizeObserver?.disconnect();
@@ -1512,7 +1517,7 @@ class WallRadarCard extends (globalThis.HTMLElement ?? class {}) {
     const view = { minX: b.min.x * k, minY: b.min.y * k, maxX: b.max.x * k, maxY: b.max.y * k };
     const home = sourcePixel(this._home[0], this._home[1], z);
     scan.tiles = scan.tiles || new Map();
-    scan.tiles.set(`${x}/${y}`, tileNumbers(field, x, y, view, home, echoIndex(c.echo_dbz)));
+    scan.tiles.set(`${z}/${x}/${y}`, tileNumbers(field, x, y, view, home, echoIndex(c.echo_dbz)));
   }
 
   // Site data inside site_range_km, MRMS beyond it and in the site's gaps, blended across blend_km.
@@ -1816,7 +1821,12 @@ class WallRadarCard extends (globalThis.HTMLElement ?? class {}) {
     let failed = 0;
     layer.on('tileload', () => loaded++);
     layer.on('tileerror', () => failed++);
-    layer.on('tileunload', (e) => scan.tiles?.delete(`${e.coords.x}/${e.coords.y}`));
+    // Keyed by the URL zoom, as _recordTile keeps them (what Leaflet's _getZoomForUrl gives for these coords).
+    layer.on('tileunload', (e) => {
+      const o = layer.options;
+      const z = Math.min(e.coords.z, o.maxNativeZoom ?? Infinity) + (o.zoomOffset || 0);
+      scan.tiles?.delete(`${z}/${e.coords.x}/${e.coords.y}`);
+    });
     let timer;
     let finished = false;
     const gen = this._gen;

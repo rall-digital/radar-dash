@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.2.10
+
+Four changes from Greg Parsons (gregorskii), with follow-up fixes.
+
+- Radar: the loop no longer shows the same moment twice. A poll that lands while the first frames are still loading
+  no longer fetches the finished ones again, and a frame is dropped as a duplicate only against the list it joins, so
+  a hybrid loop a, b, c, d that falls back to composite and returns with b, c, d, e becomes b, c, d, e, not just e. The
+  forecast sync also counts staged frames (Greg Parsons, #10).
+- Docs: keeping memory down on big, high-resolution screens. The canvas figures apply on a 2x (HiDPI) screen; at 1x,
+  `detail: 1` is four times the tiles but the same canvas memory and no sharper (Greg Parsons, #11).
+- Radar: the card fires `wall-radar-map` (`detail: { map, L }`) when it builds its map, so a page can add its own
+  Leaflet layers, and has a read-only `map` property (`null` before the map is built and after teardown)
+  (Greg Parsons, #12).
+- Radar: `interactive` (default `false`). `true` adds + / − buttons and drag, pinch, wheel and double-tap zoom
+  (4 to 11); `buttons` adds only the buttons. Warning outlines are redrawn for the new view. Echo tiles are now kept
+  per zoom level, so numbers do not mix tiles of two zooms; while `interactive` is on, `data-home-dbz` and the other
+  echo numbers are approximate (not recomputed when the view changes). Horizon ignores `radar.interactive`
+  (Greg Parsons, #13).
+
 ## 1.2.9
 
 - Horizon: tap the now-playing pill to open a music sheet, in the style of the thermostat sheet: album art, title,

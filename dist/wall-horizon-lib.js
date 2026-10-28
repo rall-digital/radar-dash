@@ -217,7 +217,8 @@ export function fitNumber(m, cap) {
 
 /** The embedded wall-radar-card's config: the radar: block plus the layout's fixed keys. */
 export function radarConfig(radar) {
-  return { ...radar, type: 'custom:wall-radar-card', height: '100%', show_color_bar: false, show_progress: false };
+  const { interactive, ...rest } = radar; // a wall layout is not touched: the embedded radar is never interactive
+  return { ...rest, type: 'custom:wall-radar-card', height: '100%', show_color_bar: false, show_progress: false };
 }
 
 /** An older wall-radar-card rejects ink, night and auto: retry on its default basemap. */
