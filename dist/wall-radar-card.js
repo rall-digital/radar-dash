@@ -1754,7 +1754,8 @@ class WallRadarCard extends (globalThis.HTMLElement ?? class {}) {
   // Replace (source switch, or a new composite cycle, whose offset layers all move):
   // the old frames keep animating until the whole new set has loaded, then swap at once.
   _sync(scans) {
-    const have = new Set([...this._frames.map((f) => f.key), ...this._pending.keys()]);
+    // Staged frames count as had: a poll during the first load would otherwise fetch them again.
+    const have = new Set([...this._frames.map((f) => f.key), ...(this._staged || []).map((f) => f.key), ...this._pending.keys()]);
     const fresh = scans.filter((s) => !have.has(s.key));
     if (!fresh.length) return;
     if (this._replaceNext || this._mode === 'composite') {
@@ -1839,6 +1840,12 @@ class WallRadarCard extends (globalThis.HTMLElement ?? class {}) {
   }
 
   _addFrame(frame) {
+    // One frame per scan: a second copy would take the place of a real step in the loop.
+    const dupe = (list) => list && list.some((f) => f.key === frame.key);
+    if (dupe(this._frames) || dupe(this._staged) || dupe(this._fcStaged)) {
+      queueMicrotask(() => frame.layer.remove()); // deferred, as in _preload: this runs inside the layer's 'load'
+      return;
+    }
     if (frame.forecast && this._fcStaged) {
       this._fcStaged.push(frame);
       return;
