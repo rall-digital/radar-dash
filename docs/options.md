@@ -50,6 +50,7 @@ Rules that hold for all three cards:
 | `show_labels` | boolean | `false` | none | Place names (CARTO). Off means those tiles are never requested. |
 | `show_attribution` | boolean | `true` | none | The data-source credit line on the map: the basemap's providers, OpenStreetMap and CARTO when labels are on, and NOAA/NWS via IEM. The providers' terms ask for it; if you turn it off, credit them elsewhere on the display. |
 | `show_status` | boolean | `false` | none | A small chip when data is stale or the site is offline. The text is always in `data-status`. |
+| `interactive` | `false`, `true` or `buttons` | `false` | none | `true`: + / − buttons (bottom right), drag, pinch, wheel and double-tap, zoom 4 to 11. `buttons`: the buttons only, so a swipe still scrolls the page. Each zoom loads the tiles of every frame in the loop again. |
 
 ### Loop
 

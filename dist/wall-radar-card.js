@@ -100,6 +100,9 @@ const DEFAULTS = {
   show_labels: false,
   show_attribution: true,
   show_status: false,
+  // false: a still wall map. 'buttons': + / - only (a swipe over the card still scrolls the page). true: the buttons
+  // plus drag, pinch, wheel and double-tap.
+  interactive: false,
   // Self-healing on a page that is never reloaded (see _watch). 0 turns a step off.
   watchdog: true,
   watchdog_restart_min: 20,
@@ -127,6 +130,7 @@ const RELOAD_KEY = 'wall-radar-card:last-reload';
 const MRMS_MAX_LAG_MIN = 10; // an MRMS frame older than this relative to its N0B scan is not used
 const FORECAST_OPACITY = 0.75; // forecast frames: lower opacity ...
 const FORECAST_DESATURATE = 0.4; // ... and partly desaturated
+const ZOOM_RANGE = [4, 11]; // interactive: radar tiles add no detail past 11; 4 shows the whole country
 const SMOOTH_RADIUS = 2; // box blur radius in source pixels, applied twice
 const SMOOTH_NODATA = 44; // -10 dBZ on the n0q index scale
 // Composite layers exist for the current image plus 5-minute offsets out to 55 minutes.
@@ -793,6 +797,15 @@ const CARD_CSS = `
     font-size: 9px; background: rgba(0, 0, 0, 0.35) !important; color: rgba(255, 255, 255, 0.6);
   }
   .leaflet-control-attribution a { color: inherit; }
+  .leaflet-control-zoom.leaflet-bar {
+    border: 0; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  }
+  .leaflet-container .leaflet-control-zoom a {
+    width: 34px; height: 34px; line-height: 32px; font-size: 20px; border: 0;
+    background: rgba(18, 21, 25, 0.78); color: #e9eef0;
+  }
+  .leaflet-container .leaflet-control-zoom a + a { border-top: 1px solid rgba(255, 255, 255, 0.12); }
+  .leaflet-container .leaflet-control-zoom a.leaflet-disabled { color: rgba(233, 238, 240, 0.35); }
 `;
 
 // Node can import this file for its pure helpers and palettes; there it has no DOM.
@@ -828,6 +841,7 @@ class WallRadarCard extends (globalThis.HTMLElement ?? class {}) {
     if (!BASEMAPS[c.basemap] && c.basemap !== 'auto') throw new Error(`wall-radar-card: basemap must be one of ${Object.keys(BASEMAPS).join(', ')}, auto`);
     if (!BASEMAPS[c.day_basemap]) throw new Error(`wall-radar-card: day_basemap must be one of ${Object.keys(BASEMAPS).join(', ')}`);
     if (!BASEMAPS[c.night_basemap]) throw new Error(`wall-radar-card: night_basemap must be one of ${Object.keys(BASEMAPS).join(', ')}`);
+    if (![false, true, 'buttons'].includes(c.interactive)) throw new Error('wall-radar-card: interactive must be false, true or "buttons"');
     if (!PALETTES.includes(c.palette)) throw new Error(`wall-radar-card: palette must be one of ${PALETTES.join(', ')}`);
     // The centre and the site are optional: unset, they come from hass.config and the nearest site (_centre, _resolveSite).
     for (const k of ['center_latitude', 'center_longitude']) {
@@ -944,14 +958,15 @@ class WallRadarCard extends (globalThis.HTMLElement ?? class {}) {
     if (this._progress) this._progress.style.top = c.show_color_bar ? '8px' : '0';
     const el = this.shadowRoot.getElementById('map');
 
+    const gestures = c.interactive === true;
     const map = L.map(el, {
       zoomSnap: 0,
       zoomControl: false,
       attributionControl: c.show_attribution,
-      dragging: false,
-      touchZoom: false,
-      doubleClickZoom: false,
-      scrollWheelZoom: false,
+      dragging: gestures,
+      touchZoom: gestures,
+      doubleClickZoom: gestures,
+      scrollWheelZoom: gestures,
       boxZoom: false,
       keyboard: false,
       tap: false,
@@ -969,6 +984,13 @@ class WallRadarCard extends (globalThis.HTMLElement ?? class {}) {
     }
     this._map = map;
     this._placeHome();
+    if (c.interactive) {
+      map.setMinZoom(Math.min(ZOOM_RANGE[0], c.zoom_level));
+      map.setMaxZoom(Math.max(ZOOM_RANGE[1], c.zoom_level));
+      L.control.zoom({ position: 'bottomright', zoomInTitle: 'Zoom in', zoomOutTitle: 'Zoom out' }).addTo(map);
+      // Warnings are drawn for the view; draw them again for the new one.
+      map.on('moveend', () => this._warningFeatures && this._warningsLayer && this._drawWarnings());
+    }
 
     this._seamlessLayer = L.TileLayer.extend({
       // Overlap each tile by 1px so fractional transforms never open a seam.
