@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.0
+
+- Horizon: `music_takeover: true` makes the music sheet take the wall by itself while `music` is playing: album art,
+  title, artist, progress, transport and the receiver's volume, full screen. It closes when playback stops or pauses,
+  and the ✕ keeps it closed until playback stops.
+- New option `music_when` (a `media_player`, for example the Denon AVR the music comes out of). While that receiver is
+  off, in standby or unreachable, the now-playing pill stays hidden and the sheet is not taken over, so listening
+  privately on a phone or headphones leaves the wall alone.
+
 ## 1.2.10
 
 Four changes from Greg Parsons (gregorskii), with follow-up fixes.

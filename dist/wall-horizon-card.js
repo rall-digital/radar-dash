@@ -7,7 +7,7 @@ const VERSION = new URL(import.meta.url).search;
 const {
   CALLOUT_DEFAULTS, XBOX_TIMEOUT_MS, callout, calloutGeometry, calloutIcon, conditionIcon, conditionLabel, dateLine,
   designFit, esc, fcScale, fitClock, fitNumber, fontMetrics, forecastRows, hhmm, homePoint, isCalm,
-  musicView, newestObservedEchoes, num, strongScrim, parseRainWindow, popText, radarConfig, radarFallback, readRadar, roomView,
+  musicView, musicTakesOver, newestObservedEchoes, num, strongScrim, parseRainWindow, popText, radarConfig, radarFallback, readRadar, roomView,
   scalePct, screenLabel, screenStep, tcol, tempText, toDate, twoLines, volumeToast, xboxInit, xboxStep, xboxView,
   CLIMATE_DEBOUNCE_MS, DIAL, FAN_CHIPS, MODE_CHIPS, MODE_COLORS, SHEET_IDLE_MS, arcPath, chipsFor, climateDue,
   climateInit, climateStep, climateToast, dialAngle, dialCentre, dialDrag, dialLive, dialPoint, dialRange, dialStatus, dialTap,
@@ -27,6 +27,11 @@ const DEFAULTS = {
   volume: { down: '', up: '', targets: [], labels: [] },
   select: { remote: '', command: 'select', num_repeats: 1, delay_secs: 0.4, label: 'Apple TV' },
   music: '',
+  // A receiver (a media_player) that must be on for the pill and the music sheet, so listening privately on a phone
+  // or headphones leaves the wall alone. Unset: only the player's own state matters.
+  music_when: '',
+  // Open the music sheet by itself while the player is playing, and close it when playback stops or pauses.
+  music_takeover: false,
   // The receiver (a media_player) whose volume the music sheet sets, and the loudest level it may set (0 to 1).
   music_volume: '',
   music_volume_max: 1,
@@ -464,6 +469,8 @@ class WallHorizonCard extends HTMLElement {
     this._rule = 0;
     this._clim = {};
     this._sheet = null;
+    this._music = false;
+    this._musicDismissed = false;
     this._drag = null;
     this.shadowRoot.addEventListener('click', (e) => this._onClick(e));
     this.shadowRoot.addEventListener('pointerdown', (e) => this._onPointerDown(e));
@@ -490,6 +497,7 @@ class WallHorizonCard extends HTMLElement {
     if (!Array.isArray(c.volume.targets) || c.volume.targets.some((t) => typeof t !== 'string')) throw new Error('wall-horizon-card: volume.targets must be a list of media_player entities');
     if (!Array.isArray(c.volume.labels)) throw new Error('wall-horizon-card: volume.labels must be a list of names, one per target');
     if (typeof c.music_volume !== 'string') throw new Error('wall-horizon-card: music_volume must be a media_player entity');
+    if (typeof c.music_when !== 'string') throw new Error('wall-horizon-card: music_when must be a media_player entity');
     c.music_volume_max = Number(c.music_volume_max);
     if (!(c.music_volume_max > 0 && c.music_volume_max <= 1)) throw new Error('wall-horizon-card: music_volume_max must be a number above 0 and up to 1');
     c.calm_echo_floor = Number(c.calm_echo_floor);
@@ -562,6 +570,7 @@ class WallHorizonCard extends HTMLElement {
     this._radar = null;
     this._sheet = null;
     this._music = false;
+    this._musicDismissed = false;
     this._drag = null;
     this._vdrag = null;
     this._vol = null;
@@ -687,11 +696,12 @@ class WallHorizonCard extends HTMLElement {
     if (!h || !this._built) return;
     const c = this._config;
     const st = (id) => (id ? h.states[id] : undefined);
+    this._syncMusic();
     this._region('temp', [st(c.temperature_entity)], () => this._renderTemp());
     this._region('cond', [st(c.weather_entity), st(c.sun_entity), this._forecast, this._dayKey], () => this._renderCond());
     this._region('fc', [st(c.temperature_entity), this._forecast, this._forecastFailed, this._dayKey], () => this._renderForecast());
     this._region('rooms', c.rooms.map((r) => st(r.entity)), () => this._renderRooms());
-    this._region('theater', [st(c.music), st(c.xbox.now_playing), this._xbox, this._screen], () => this._renderTheater());
+    this._region('theater', [st(c.music), st(c.music_when), st(c.xbox.now_playing), this._xbox, this._screen], () => this._renderTheater());
     if (this._sheet !== null) {
       const cl = this._clim[c.rooms[this._sheet].entity];
       this._region('sheet', [this._sheet, ...c.rooms.map((r) => st(r.entity)), cl.temp, cl.mode, cl.fan], () => this._renderSheet());
@@ -870,7 +880,8 @@ class WallHorizonCard extends HTMLElement {
   _renderTheater() {
     const c = this._config;
     const h = this._hass;
-    const music = c.music ? musicView(h.states[c.music]) : null;
+    // The pill takes over only while the music may: playing, and `music_when` (when set) is on.
+    const music = c.music && musicTakesOver(h.states[c.music], this._musicGate()) ? musicView(h.states[c.music]) : null;
     if (music) {
       const pic = music.picture && h.hassUrl ? h.hassUrl(music.picture) : music.picture;
       setHTML(this._el.theater, `<div class="np"><button type="button" class="open" data-act="music-open" aria-label="${esc(`Now playing: ${music.title}${music.artist ? `, ${music.artist}` : ''}. Opens the music controls.`)}">${pic ? `<img class="art" alt="" src="${esc(pic)}">` : '<span class="art"></span>'}<span class="xl"><b>${esc(music.title)}</b><span>${esc(music.artist)}</span></span></button><button type="button" class="pp" data-act="music" aria-label="Pause">${icon('mdi:pause')}</button></div>`);
@@ -956,6 +967,8 @@ class WallHorizonCard extends HTMLElement {
         break;
       case 'close':
         this._closeSheet();
+        // The ✕ on a takeover sheet keeps it closed until the music stops, instead of _syncMusic reopening it.
+        if (this._music) this._musicDismissed = true;
         this._closeMusic();
         break;
       case 'music-open':
@@ -1116,7 +1129,8 @@ class WallHorizonCard extends HTMLElement {
         if (quiet < SHEET_IDLE_MS) return this._sheetIdle(SHEET_IDLE_MS - quiet);
         this._volEnd();
       }
-      this._closeMusic();
+      // The takeover keeps the sheet up for as long as the music plays; _syncMusic closes it when that stops.
+      if (!this._takeoverWanted()) this._closeMusic();
       return;
     }
     const d = this._drag;
@@ -1282,11 +1296,38 @@ class WallHorizonCard extends HTMLElement {
 
   // ---- music sheet --------------------------------------------------------------------------------
 
+  /** The `music_when` state object: undefined when no gate is named, null when one is named but missing. */
+  _musicGate() {
+    const id = this._config.music_when;
+    return id ? this._hass?.states[id] ?? null : undefined;
+  }
+
+  /** Whether the music should hold the wall now: `music_takeover`, the player playing, and its gate on. */
+  _takeoverWanted() {
+    const c = this._config;
+    return c.music_takeover === true && !!c.music && musicTakesOver(this._hass?.states[c.music], this._musicGate());
+  }
+
+  /**
+   * With `music_takeover`, the sheet follows the music by itself: it opens while the music plays (through its gate),
+   * and closes when playback stops or pauses. Without the option it changes nothing, and the pill opens the sheet.
+   */
+  _syncMusic() {
+    if (this._config.music_takeover !== true) return;
+    if (!this._takeoverWanted()) {
+      this._musicDismissed = false;
+      this._closeMusic();
+      return;
+    }
+    if (!this._music && !this._musicDismissed) this._openMusic();
+  }
+
   /** The now-playing pill opens it: the track, transport, and the receiver's volume. It closes when nothing is playing or paused. */
   _openMusic() {
     if (!playerView(this._hass?.states[this._config.music])) return;
     this._closeSheet();
     this._music = true;
+    this._musicDismissed = false;
     this._deps.music = null;
     this._el.music.hidden = false;
     this._el.mVolBox.hidden = !this._config.music_volume;
