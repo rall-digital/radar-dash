@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   XBOX_TIMEOUT_MS, xboxInit, xboxStep, xboxView, screenStep, screenLabel, volumeToast, roomView, musicView, playerView, progressAt, clockText, volumeView, volumeSet,
+  receiverOn, musicTakesOver,
 } from '../dist/wall-horizon-lib.js';
 
 // Runs events through xboxStep and returns the final state plus every call made.
@@ -127,6 +128,24 @@ test('musicView only while playing', () => {
   assert.deepEqual(musicView(playing), { title: 'Song', artist: 'Band', picture: '/api/media_player_proxy/x?token=t' });
   assert.equal(musicView({ ...playing, state: 'paused' }), null);
   assert.equal(musicView(undefined), null);
+});
+
+test('receiverOn: off, standby and unreachable are off; idle and playing are on', () => {
+  for (const state of ['off', 'standby', 'unavailable', 'unknown']) assert.equal(receiverOn({ state }), false, state);
+  for (const state of ['on', 'idle', 'playing', 'paused']) assert.equal(receiverOn({ state }), true, state);
+  assert.equal(receiverOn(undefined), false);
+});
+
+test('musicTakesOver: the player playing, and the gate when one is named', () => {
+  const playing = { state: 'playing' };
+  assert.equal(musicTakesOver(playing, undefined), true, 'no gate named: the player alone decides');
+  assert.equal(musicTakesOver(playing, { state: 'on' }), true);
+  assert.equal(musicTakesOver(playing, { state: 'idle' }), true);
+  assert.equal(musicTakesOver(playing, { state: 'off' }), false, 'the receiver is off: private listening');
+  assert.equal(musicTakesOver(playing, { state: 'standby' }), false);
+  assert.equal(musicTakesOver(playing, null), false, 'a gate named but missing holds the wall back');
+  for (const state of ['paused', 'idle', 'off', 'buffering']) assert.equal(musicTakesOver({ state }, { state: 'on' }), false, state);
+  assert.equal(musicTakesOver(undefined, { state: 'on' }), false);
 });
 
 test('a report of the old state does not end Starting…', () => {

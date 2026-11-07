@@ -561,11 +561,27 @@ export function roomView(stateObj) {
   };
 }
 
+/** A receiver the wall cares about, on: anything but off, standby or unreachable. */
+export function receiverOn(stateObj) {
+  const s = stateObj?.state;
+  return !!stateObj && s !== 'off' && s !== 'standby' && s !== 'unavailable' && s !== 'unknown';
+}
+
 /** The now-playing pill, or null unless the player is playing. */
 export function musicView(stateObj) {
   if (stateObj?.state !== 'playing') return null;
   const a = stateObj.attributes || {};
   return { title: a.media_title || '', artist: a.media_artist || '', picture: a.entity_picture || '' };
+}
+
+/**
+ * Whether the music may take the wall: the player is playing and, when a gate is named, that receiver is on.
+ * `gate` is `music_when`'s state object; `undefined` means no gate is set, so only the player counts. A gate that
+ * is set but missing (`null`) holds the wall back rather than guessing.
+ */
+export function musicTakesOver(musicState, gate) {
+  if (musicState?.state !== 'playing') return false;
+  return gate === undefined || receiverOn(gate);
 }
 
 /** The music sheet's player: null unless something is playing, paused or buffering. */

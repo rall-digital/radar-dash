@@ -57,3 +57,12 @@ test('the dimmed centre number does not reuse the room tiles\' class (its paddin
   assert.match(src, /e\.dNum\.classList\.toggle\('dim', centre\.room\)/);
   assert.doesNotMatch(src, /\.d-num\.room/);
 });
+
+test('the music takeover is off by default, and music_when gates both the pill and the sheet', () => {
+  assert.match(src, /^\s*music_takeover: false,$/m);
+  assert.match(src, /^\s*music_when: '',$/m);
+  assert.match(src, /const music = c\.music && musicTakesOver\(h\.states\[c\.music\], this\._musicGate\(\)\)/);
+  assert.match(src, /if \(this\._config\.music_takeover !== true\) return;/);
+  assert.match(src, /if \(!this\._takeoverWanted\(\)\) \{\s*this\._musicDismissed = false;\s*this\._closeMusic\(\);/);
+  assert.match(src, /if \(this\._music\) this\._musicDismissed = true;/);
+});

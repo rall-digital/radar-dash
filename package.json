@@ -1,6 +1,6 @@
 {
   "name": "radar-dash",
-  "version": "1.2.10",
+  "version": "1.3.0",
   "private": true,
   "description": "NEXRAD radar, wall layout and thermostat cards for Home Assistant",
   "license": "MIT",

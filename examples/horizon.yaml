@@ -30,6 +30,11 @@ cards:
     # ---- optional household controls; delete what you do not have -------------------------------
     # Now-playing pill with a pause button, shown while this player is "playing".
     music: media_player.spotify
+    # Only take the wall over while this receiver is on (often the same entity as music_volume): listening
+    # privately on a phone or headphones then leaves the wall alone.
+    music_when: media_player.denon_avr
+    # Open the music sheet by itself while the music plays, and close it when playback stops or pauses.
+    music_takeover: true
     # Tapping the pill opens a music sheet; this receiver's volume is set from it (optional, e.g. a Denon).
     music_volume: media_player.denon_avr
     music_volume_max: 0.8                            # optional: the loudest the slider may set (0 to 1)
