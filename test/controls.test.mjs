@@ -115,12 +115,20 @@ test('volume toast: the level as a percentage, or the direction', () => {
 });
 
 test('roomView: rounded temperature and a dot only for cool and heat', () => {
-  assert.deepEqual(roomView({ state: 'cool', attributes: { current_temperature: 74.6 } }), { temp: '75°', mode: 'cool' });
-  assert.deepEqual(roomView({ state: 'heat', attributes: { current_temperature: 68 } }), { temp: '68°', mode: 'heat' });
+  assert.deepEqual(roomView({ state: 'cool', attributes: { current_temperature: 74.6 } }), { temp: '75°', mode: 'cool', stale: false });
+  assert.deepEqual(roomView({ state: 'heat', attributes: { current_temperature: 68 } }), { temp: '68°', mode: 'heat', stale: false });
   for (const mode of ['off', 'heat_cool', 'dry', 'fan_only']) assert.equal(roomView({ state: mode, attributes: { current_temperature: 73 } }).mode, '');
-  assert.deepEqual(roomView({ state: 'unavailable', attributes: {} }), { temp: '—', mode: '' });
-  assert.deepEqual(roomView(undefined), { temp: '—', mode: '' });
-  assert.deepEqual(roomView({ state: 'off', attributes: { current_temperature: null } }), { temp: '—', mode: '' });
+  assert.deepEqual(roomView({ state: 'unavailable', attributes: {} }), { temp: '—', mode: '', stale: false });
+  assert.deepEqual(roomView(undefined), { temp: '—', mode: '', stale: false });
+  assert.deepEqual(roomView({ state: 'off', attributes: { current_temperature: null } }), { temp: '—', mode: '', stale: false });
+});
+
+test('roomView: last known temperature when the room is unavailable', () => {
+  assert.deepEqual(roomView({ state: 'unavailable', attributes: {} }, 71.4), { temp: '71°', mode: '', stale: true });
+  assert.deepEqual(roomView({ state: 'off', attributes: { current_temperature: null } }, 68), { temp: '68°', mode: '', stale: true });
+  assert.deepEqual(roomView(undefined, 70), { temp: '70°', mode: '', stale: true });
+  assert.deepEqual(roomView({ state: 'unavailable', attributes: {} }, null), { temp: '—', mode: '', stale: false });
+  assert.deepEqual(roomView({ state: 'unavailable', attributes: {} }, 'nope'), { temp: '—', mode: '', stale: false });
 });
 
 test('musicView only while playing', () => {

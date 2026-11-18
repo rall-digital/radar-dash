@@ -552,12 +552,21 @@ export function volumeToast(label, dir, level) {
   return n === null ? (dir === 'up' ? 'Volume up' : 'Volume down') : `${label} volume ${Math.round(n * 100)}%`;
 }
 
-/** A room readout from a climate state object: { temp: '73°' | '—', mode: 'cool' | 'heat' | '' }. */
-export function roomView(stateObj) {
-  if (!stateObj || stateObj.state === 'unavailable' || stateObj.state === 'unknown') return { temp: '—', mode: '' };
+/** A room readout from a climate state object: { temp: '73°' | '—', mode: 'cool' | 'heat' | '', stale }.
+ *  lastTemp is shown, marked stale, when the entity or its current_temperature is unavailable. */
+export function roomView(stateObj, lastTemp) {
+  const last = num(lastTemp);
+  if (!stateObj || stateObj.state === 'unavailable' || stateObj.state === 'unknown') {
+    return last === null ? { temp: '—', mode: '', stale: false } : { temp: tempText(last), mode: '', stale: true };
+  }
+  const current = num(stateObj.attributes?.current_temperature);
+  if (current === null) {
+    return last === null ? { temp: '—', mode: '', stale: false } : { temp: tempText(last), mode: '', stale: true };
+  }
   return {
-    temp: tempText(stateObj.attributes?.current_temperature),
+    temp: tempText(current),
     mode: stateObj.state === 'cool' || stateObj.state === 'heat' ? stateObj.state : '',
+    stale: false,
   };
 }
 
