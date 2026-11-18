@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.1
+
+- Horizon: a room thermostat, the outside temperature or the daily forecast that goes unavailable no longer leaves
+  "—" / "Forecast unavailable" on the wall. The last known temperatures are kept in `localStorage`
+  (`wall-horizon:last-known`), the last daily forecast is reused for up to 24 h, and the stale values are shown
+  dimmed (with a "last known" aria-label) until live data returns. Nothing changes while the entities are healthy.
+
 ## 1.3.0
 
 - Horizon: `music_takeover: true` makes the music sheet take the wall by itself while `music` is playing: album art,

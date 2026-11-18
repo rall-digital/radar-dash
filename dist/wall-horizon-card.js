@@ -55,6 +55,24 @@ const RADAR_ATTRS = ['data-credits', 'data-basemap', 'data-frame', 'data-frames'
 // Home Assistant may restart under the page: a failed forecast subscription retries, and data this old counts as failed.
 const FORECAST_RETRY_MS = 60000;
 const FORECAST_STALE_MS = 2 * 3600000;
+// Show the last reading instead of "—" when an entity is unavailable, and keep the last good forecast for a day.
+const LAST_KNOWN_KEY = 'wall-horizon:last-known';
+const FORECAST_CACHE_MS = 24 * 3600000;
+function loadLastKnown() {
+  try {
+    const data = JSON.parse(localStorage.getItem(LAST_KNOWN_KEY) || '{}');
+    return { temps: (data && typeof data.temps === 'object' && data.temps) || {}, forecast: (data && data.forecast) || null };
+  } catch {
+    return { temps: {}, forecast: null };
+  }
+}
+function saveLastKnown(cache) {
+  try {
+    localStorage.setItem(LAST_KNOWN_KEY, JSON.stringify(cache));
+  } catch {
+    /* storage unavailable; the next good reading tries again */
+  }
+}
 // The "N° now" label's horizontal limits in dial units: design x 8 (clear of the screen edge) to 690 (10 px short of
 // the right column at 700). The dial box starts at design x 70 and draws DIAL.size units in 560 px.
 const NOW_X = [((8 - 70) * 460) / 560, ((690 - 70) * 460) / 560];
@@ -176,6 +194,7 @@ const TOP_CSS = `
   .clock .d { display: inline-block; width: var(--dw, .6em); text-align: center; }
   .clock .c { display: inline-block; width: var(--cw, .3em); text-align: center; }
   .temp { right: 44px; top: 34px; text-shadow: 0 4px 40px rgb(0 0 0 / .4); }
+  .temp.stale, .room .t.stale, .fc-row.stale { opacity: .55; }
   .date { left: 40px; top: 243px; display: flex; align-items: baseline; gap: 20px; color: #eef3fb; white-space: nowrap;
     font-family: ${DF}; text-shadow: 0 2px 16px rgb(0 0 0 / .6); }
   .date .wd { font-weight: 650; font-size: 66px; line-height: 1; }
@@ -464,6 +483,7 @@ class WallHorizonCard extends HTMLElement {
     this._screen = { dir: null, t0: 0 };
     this._forecast = null;
     this._forecastFailed = false;
+    this._lastKnown = loadLastKnown();
     this._radarSummary = null;
     this._echoes = undefined;
     this._rule = 0;
@@ -511,6 +531,8 @@ class WallHorizonCard extends HTMLElement {
       this._unsubscribe();
       this._forecast = null;
       this._forecastFailed = false;
+      this._lastKnown.forecast = null;
+      saveLastKnown(this._lastKnown);
     }
     // The rain threshold is the radar card's own echo_dbz, so rule 2, rule 3 and calm mode agree.
     this._thresholds = { ...c.callout, rain_dbz: num(c.radar.echo_dbz) ?? CALLOUT_DEFAULTS.rain_dbz };
@@ -745,9 +767,18 @@ class WallHorizonCard extends HTMLElement {
 
   _renderTemp() {
     const id = this._config.temperature_entity;
-    const t = id ? tempText(this._hass.states[id]?.state) : '';
+    const cache = this._lastKnown;
+    const live = id ? num(this._hass.states[id]?.state) : null;
+    if (id && live !== null) {
+      cache.temps[id] = live;
+      saveLastKnown(cache);
+    }
+    const shown = id ? (live !== null ? live : num(cache.temps[id])) : null;
+    const t = id ? tempText(shown) : '';
+    const stale = !!id && live === null && shown !== null;
     setText(this._el.tempDig, t);
-    this._el.temp.setAttribute('aria-label', id ? `Outside, ${t === '—' ? 'unavailable' : t.replace('°', ' degrees')}.${this._tapNote.up}` : `Temperature.${this._tapNote.up}`);
+    this._el.temp.classList.toggle('stale', stale);
+    this._el.temp.setAttribute('aria-label', id ? `Outside, ${t === '—' ? 'unavailable' : `${t.replace('°', ' degrees')}${stale ? ' (last known)' : ''}`}.${this._tapNote.up}` : `Temperature.${this._tapNote.up}`);
   }
 
   _renderCond() {
@@ -755,7 +786,11 @@ class WallHorizonCard extends HTMLElement {
     const c = this._config;
     const w = h.states[c.weather_entity];
     const label = c.show_condition === true ? conditionLabel(w?.state) : '';
-    const first = this._forecast ? forecastRows(this._forecast.daily, new Date(), 1)[0] : null;
+    const cache = this._lastKnown;
+    const fresh = Array.isArray(this._forecast?.daily) && this._forecast.daily.length > 0;
+    const cached = cache.forecast && Date.now() - (cache.forecast.at || 0) <= FORECAST_CACHE_MS ? cache.forecast.daily : null;
+    const daily = fresh ? this._forecast.daily : cached;
+    const first = daily ? forecastRows(daily, new Date(), 1)[0] : null;
     const today = c.show_high_low === true && first?.label === 'Today' ? first : null;
     const night = h.states[c.sun_entity]?.state === 'below_horizon';
     setHTML(this._el.cond, `${label ? `${icon(conditionIcon(w.state, night))}<span>${esc(label)}</span>` : ''}${today ? `<b>↑ ${today.hi}°</b><b>↓ ${today.lo}°</b>` : ''}`);
@@ -851,28 +886,40 @@ class WallHorizonCard extends HTMLElement {
   }
 
   _renderForecast() {
-    if (this._forecastFailed) return setHTML(this._el.fc, '<div class="fc-msg">Forecast unavailable</div>');
-    if (!this._forecast) return setHTML(this._el.fc, '');
-    const rows = forecastRows(this._forecast.daily, new Date(), 4);
+    const cache = this._lastKnown;
+    const fresh = !this._forecastFailed && Array.isArray(this._forecast?.daily) && this._forecast.daily.length > 0;
+    if (fresh) {
+      cache.forecast = { daily: this._forecast.daily, hourly: this._forecast.hourly || [], at: Date.now() };
+      saveLastKnown(cache);
+    }
+    const cached = cache.forecast && Date.now() - (cache.forecast.at || 0) <= FORECAST_CACHE_MS ? cache.forecast : null;
+    const data = fresh ? this._forecast : cached;
+    if (!data) return setHTML(this._el.fc, '<div class="fc-msg">Forecast unavailable</div>');
+    const rows = forecastRows(data.daily, new Date(), 4);
     if (!rows.length) return setHTML(this._el.fc, '<div class="fc-msg">Forecast unavailable</div>');
     const scale = fcScale(rows);
-    const now = num(this._hass.states[this._config.temperature_entity]?.state);
+    const now = num(this._hass.states[this._config.temperature_entity]?.state) ?? num(cache.temps[this._config.temperature_entity]);
+    const stale = fresh ? '' : ' stale';
     setHTML(this._el.fc, rows.map((d) => {
       const l = scalePct(d.lo, scale);
       const r = scalePct(d.hi, scale);
       const dot = d.label === 'Today' && now !== null ? `<span class="fc-now" style="left:${scalePct(now, scale).toFixed(2)}%"></span>` : '';
-      return `<div class="fc-row"><span class="fc-day">${d.label}</span>${icon(conditionIcon(d.condition))}<span class="fc-lo">${d.lo}°</span><span class="fc-track"><span class="fc-bar" style="left:${l.toFixed(2)}%;width:${(r - l).toFixed(2)}%;background:linear-gradient(90deg,${tcol(d.lo)},${tcol(d.hi)})"></span>${dot}</span><span class="fc-hi">${d.hi}°</span><span class="fc-pop">${popText(d.pop)}</span></div>`;
+      return `<div class="fc-row${stale}"><span class="fc-day">${d.label}</span>${icon(conditionIcon(d.condition))}<span class="fc-lo">${d.lo}°</span><span class="fc-track"><span class="fc-bar" style="left:${l.toFixed(2)}%;width:${(r - l).toFixed(2)}%;background:linear-gradient(90deg,${tcol(d.lo)},${tcol(d.hi)})"></span>${dot}</span><span class="fc-hi">${d.hi}°</span><span class="fc-pop">${popText(d.pop)}</span></div>`;
     }).join(''));
   }
 
   _renderRooms() {
+    const cache = this._lastKnown;
     setHTML(this._el.rooms, this._config.rooms.map((r, i) => {
       const s = this._hass.states[r.entity];
-      const v = roomView(s);
+      const live = num(s?.attributes?.current_temperature);
+      if (live !== null) cache.temps[r.entity] = live;
+      const v = roomView(s, cache.temps[r.entity]);
       const name = r.name || s?.attributes?.friendly_name || r.entity;
-      const said = v.temp === '—' ? 'unavailable' : v.temp.replace('°', ' degrees');
-      return `<button type="button" class="room" data-act="room" data-i="${i}" data-h="${v.mode}" aria-label="${esc(name)}, ${said}${v.mode ? `, ${v.mode} mode` : ''}. Opens the thermostat."><span class="hv">${icon(r.icon || 'mdi:thermostat')}</span><span class="t">${v.temp}</span><span class="n">${twoLines(name).map(esc).join('<br>')}</span></button>`;
+      const said = v.temp === '—' ? 'unavailable' : `${v.temp.replace('°', ' degrees')}${v.stale ? ', last known' : ''}`;
+      return `<button type="button" class="room" data-act="room" data-i="${i}" data-h="${v.mode}" aria-label="${esc(name)}, ${said}${v.mode ? `, ${v.mode} mode` : ''}. Opens the thermostat."><span class="hv">${icon(r.icon || 'mdi:thermostat')}</span><span class="t${v.stale ? ' stale' : ''}">${v.temp}</span><span class="n">${twoLines(name).map(esc).join('<br>')}</span></button>`;
     }).join(''));
+    saveLastKnown(cache);
   }
 
   // ---- theater ------------------------------------------------------------------------------------
