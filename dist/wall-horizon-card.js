@@ -194,7 +194,6 @@ const TOP_CSS = `
   .clock .d { display: inline-block; width: var(--dw, .6em); text-align: center; }
   .clock .c { display: inline-block; width: var(--cw, .3em); text-align: center; }
   .temp { right: 44px; top: 34px; text-shadow: 0 4px 40px rgb(0 0 0 / .4); }
-  .temp.stale, .room .t.stale, .fc-row.stale { opacity: .55; }
   .date { left: 40px; top: 243px; display: flex; align-items: baseline; gap: 20px; color: #eef3fb; white-space: nowrap;
     font-family: ${DF}; text-shadow: 0 2px 16px rgb(0 0 0 / .6); }
   .date .wd { font-weight: 650; font-size: 66px; line-height: 1; }
