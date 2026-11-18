@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.2
+
+- Horizon: the cached last-known temperatures now render at full brightness instead of dimmed, so a room, the
+  outside temperature or the forecast never reads as a dash and still looks like a live value. The screen-reader
+  label still says "last known"; only the visual dimming is gone.
+
 ## 1.3.1
 
 - Horizon: a room thermostat, the outside temperature or the daily forecast that goes unavailable no longer leaves
