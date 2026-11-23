@@ -23,9 +23,26 @@ cards:
       - entity: climate.living_room
         icon: mdi:sofa
         name: Living room
+        # hot_when: binary_sensor.fireplace_status  # draw this room's icon warm while it is on
       - entity: climate.bedroom
         icon: mdi:bed
         name: Bedroom
+
+    # A fireplace's own sheet, reached from the room sheet's tabs (never drawn on the wall). Everything but
+    # `entity` is optional: a control without an entity is simply not drawn.
+    # fireplace:
+    #   entity: climate.fireplace_thermostat        # the dial and the Thermostat chip (mode Off / Heat)
+    #   name: Fireplace
+    #   power: switch.fireplace_power               # turn_on / turn_off; needs `burning` for its state
+    #   burning: binary_sensor.fireplace_status     # the Fire chip's state, and usually hot_when's entity
+    #   flame: select.fireplace_flame_control       # chips from the entity's own options
+    #   fan: select.fireplace_fan_control
+    #   timer: number.fireplace_timer               # Off / 30 / 60 / 120 / 180, inside min..max
+    #   cold: switch.fireplace_cold_climate
+    #   timer_remaining: sensor.fireplace_timer_remaining
+    #   fan_running: binary_sensor.fireplace_fan_running
+    #   hot: binary_sensor.fireplace_unit_hot
+    #   receiving: binary_sensor.fireplace_receiving_broadcasts
 
     # ---- optional household controls; delete what you do not have -------------------------------
     # Now-playing pill with a pause button, shown while this player is "playing".

@@ -12,6 +12,7 @@ const {
   CLIMATE_DEBOUNCE_MS, DIAL, FAN_CHIPS, MODE_CHIPS, MODE_COLORS, SHEET_IDLE_MS, arcPath, chipsFor, climateDue,
   climateInit, climateStep, climateToast, dialAngle, dialCentre, dialDrag, dialLive, dialPoint, dialRange, dialStatus, dialTap,
   fillPath, modeColor, tickPath, STEP_MINUS, STEP_PLUS, clockText, playerView, progressAt, volumeSet, volumeView,
+  fireplaceStatus, optionChips, pendingHolds, PENDING_MS, roomHot, sheetZones, shortOptionLabel, timerChips,
 } = await import(new URL(`wall-horizon-lib.js${VERSION}`, import.meta.url).href);
 
 // No entity has a default: a block with nothing set renders nothing and its taps do nothing.
@@ -22,6 +23,8 @@ const DEFAULTS = {
   rain_window: '',
   sun_entity: 'sun.sun',
   rooms: [],
+  // A fireplace's own sheet, after the rooms: only ever entered from the room sheet's tabs. Unset: no tab.
+  fireplace: null,
   xbox: { switch: '', now_playing: '' },
   screen: { down: '', up: '', seconds: 45 },
   volume: { down: '', up: '', targets: [], labels: [] },
@@ -220,6 +223,8 @@ const BOTTOM_CSS = `
   .rooms { left: 568px; top: 614px; width: 322px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
   .room { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 0; border-radius: 16px; }
   .room ha-icon { font-size: 30px; color: #c6d1e3; }
+  /* The room's appliance is on: its icon runs warm. Colour only: no glow, no animation, no size change. */
+  .room[data-hot] ha-icon { color: #ff7a3d; }
   .room .t { font-family: ${DF}; font-weight: 650; font-size: 52px; line-height: 1; }
   .room .n { font: 500 18px/1.12 ${TF}; color: #9fb0c8; white-space: nowrap; text-align: center; }
   .hv { position: relative; display: inline-flex; }
@@ -326,6 +331,8 @@ const SHEET_CSS = `
   .sh-dial[data-live="false"] svg, .sh-dial[data-live="false"] .d-num { opacity: .45; }
   .d-num.dim { opacity: .45; }
   .sh-col { left: 700px; top: 170px; width: 540px; pointer-events: auto; }
+  /* A hidden row must not keep its grid/flex display: the class rules above would win over [hidden]. */
+  .sh-col [hidden] { display: none; }
   .sh-name { font-family: ${DF}; font-weight: 650; font-size: 60px; line-height: 1; white-space: nowrap; }
   .sh-lbl { margin-top: 44px; font: 700 18px/1 ${TF}; letter-spacing: 2px; color: #7d8aa3; }
   .sh-lbl.fan { margin-top: 34px; }
@@ -339,6 +346,13 @@ const SHEET_CSS = `
   .chip[data-pending]::after { content: ""; position: absolute; inset: -6px; border-radius: 26px; border: 2px solid var(--c);
     animation: breathe .9s ease-in-out infinite alternate; }
   .chip:disabled { opacity: .4; }
+  /* The fireplace's sheet: its own block over the room column, so the room markup is never rebuilt. */
+  .sh-fire { position: absolute; left: 0; top: 0; width: 540px; }
+  .sh-fire[hidden] { display: none; }
+  .sh-fire .row3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+  .sh-fire .row5 { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+  .sh-fire .chip { height: 64px; border-radius: 20px; font-size: 24px; }
+  .sh-fire .sh-lbl { margin-top: 22px; }
   @media (prefers-reduced-motion: reduce) {
     .d-ring.sending, .chip[data-pending]::after { animation: none; }
   }
@@ -431,10 +445,11 @@ const TEMPLATE = `
         </div>
         <div class="abs sh-col">
           <div class="sh-name" id="shName"></div>
-          <div class="sh-lbl">MODE</div>
+          <div class="sh-lbl" id="shLblMode">MODE</div>
           <div class="sh-modes" id="shModes"></div>
-          <div class="sh-lbl fan">FAN</div>
+          <div class="sh-lbl fan" id="shLblFan">FAN</div>
           <div class="sh-fans" id="shFans"></div>
+          <div class="sh-fire" id="shFire" hidden></div>
         </div>
       </div>
     </div>
@@ -472,7 +487,7 @@ const TEMPLATE = `
 
 // ---- the card -----------------------------------------------------------------------------------
 
-class WallHorizonCard extends HTMLElement {
+class WallHorizonCard extends (globalThis.HTMLElement ?? class {}) {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
@@ -488,6 +503,9 @@ class WallHorizonCard extends HTMLElement {
     this._rule = 0;
     this._clim = {};
     this._sheet = null;
+    // The fireplace's chips: one request per entity, held until the entity agrees or the window closes.
+    this._pend = new Map();
+    this._pendTimer = null;
     this._music = false;
     this._musicDismissed = false;
     this._drag = null;
@@ -504,8 +522,18 @@ class WallHorizonCard extends HTMLElement {
     const c = { ...DEFAULTS, ...config };
     for (const k of ['xbox', 'screen', 'volume', 'select', 'callout']) c[k] = { ...DEFAULTS[k], ...(config[k] || {}) };
     if (!c.radar || typeof c.radar !== 'object' || Array.isArray(c.radar)) throw new Error('wall-horizon-card: radar must be a mapping of wall-radar-card options');
-    if (!Array.isArray(c.rooms) || c.rooms.length > 3 || c.rooms.some((r) => !r || typeof r.entity !== 'string')) {
-      throw new Error('wall-horizon-card: rooms must be a list of up to 3 { entity, icon, name }');
+    if (!Array.isArray(c.rooms) || c.rooms.length > 3 || c.rooms.some((r) => !r || typeof r.entity !== 'string' || (r.hot_when !== undefined && typeof r.hot_when !== 'string'))) {
+      throw new Error('wall-horizon-card: rooms must be a list of up to 3 { entity, icon, name, hot_when }');
+    }
+    // The fireplace's own sheet, reached from the room sheet's tabs. Only entity is required.
+    if (config.fireplace != null) {
+      const f = config.fireplace;
+      if (typeof f !== 'object' || Array.isArray(f)) throw new Error('wall-horizon-card: fireplace must be a mapping');
+      if (typeof f.entity !== 'string' || !f.entity) throw new Error('wall-horizon-card: fireplace.entity is required');
+      for (const k of ['name', 'icon', 'power', 'burning', 'flame', 'fan', 'timer', 'timer_remaining', 'cold', 'hot', 'fan_running', 'receiving']) {
+        if (f[k] !== undefined && typeof f[k] !== 'string') throw new Error(`wall-horizon-card: fireplace.${k} must be a string`);
+      }
+      c.fireplace = { ...f, name: f.name || 'Fireplace' };
     }
     c.screen.seconds = Number(c.screen.seconds);
     if (!(c.screen.seconds > 0)) throw new Error('wall-horizon-card: screen.seconds must be a positive number');
@@ -550,6 +578,7 @@ class WallHorizonCard extends HTMLElement {
       this._setXbox({ type: 'entity', value: xs }, false);
     }
     for (const r of this._config.rooms) this._feedClimate(r.entity, hass.states[r.entity]);
+    if (this._config.fireplace) this._feedClimate(this._config.fireplace.entity, hass.states[this._config.fireplace.entity]);
     if (!this._built) return;
     this._subscribe();
     this._render();
@@ -602,7 +631,7 @@ class WallHorizonCard extends HTMLElement {
     this._el = {};
     for (const id of ['root', 'scrims', 'mapWrap', 'home', 'lead', 'call', 'callIcon', 'callTxt', 'callHead', 'callSub', 'ui', 'clock', 'clockDig', 'date', 'wd', 'md', 'temp', 'tempDig', 'cond', 'fc', 'rooms', 'theater', 'credit',
       'sheet', 'over', 'shTabs', 'shDial', 'shSvg', 'dTrack', 'dTicks', 'dGlow', 'dFill', 'dNow', 'dNowT', 'dMin', 'dMax', 'dHandle', 'dRing',
-      'dNum', 'dStatus', 'shName', 'shModes', 'shFans',
+      'dNum', 'dStatus', 'shName', 'shModes', 'shFans', 'shFire', 'shLblMode', 'shLblFan',
       'music', 'mArt', 'mTitle', 'mArtist', 'mAlbum', 'mProg', 'mBar', 'mTimes', 'mPlay', 'mVolBox', 'mVolName', 'mMute', 'mSlider', 'mFill', 'mKnob', 'mPct', 'mNote']) this._el[id] = $(id);
     this._el.steps = [...this._el.shDial.querySelectorAll('.d-step')];
     this._el.mVolBtns = [...this._el.music.querySelectorAll('[data-act="m-vol"]')];
@@ -721,11 +750,17 @@ class WallHorizonCard extends HTMLElement {
     this._region('temp', [st(c.temperature_entity)], () => this._renderTemp());
     this._region('cond', [st(c.weather_entity), st(c.sun_entity), this._forecast, this._dayKey], () => this._renderCond());
     this._region('fc', [st(c.temperature_entity), this._forecast, this._forecastFailed, this._dayKey], () => this._renderForecast());
-    this._region('rooms', c.rooms.map((r) => st(r.entity)), () => this._renderRooms());
+    this._region('rooms', c.rooms.flatMap((r) => [st(r.entity), st(r.hot_when)]), () => this._renderRooms());
     this._region('theater', [st(c.music), st(c.music_when), st(c.xbox.now_playing), this._xbox, this._screen], () => this._renderTheater());
     if (this._sheet !== null) {
-      const cl = this._clim[c.rooms[this._sheet].entity];
-      this._region('sheet', [this._sheet, ...c.rooms.map((r) => st(r.entity)), cl.temp, cl.mode, cl.fan], () => this._renderSheet());
+      const zones = sheetZones(c);
+      const z = zones[this._sheet];
+      const cl = z ? this._clim[z.entity] : undefined;
+      const f = c.fireplace;
+      this._region('sheet', [
+        this._sheet, ...zones.map((q) => st(q.entity)), cl?.temp, cl?.mode, cl?.fan,
+        ...(f ? [st(f.power), st(f.burning), st(f.flame), st(f.fan), st(f.timer), st(f.timer_remaining), st(f.cold), st(f.hot), st(f.fan_running), st(f.receiving)] : []),
+      ], () => this._renderSheet());
     }
     if (this._music) this._region('music', [st(c.music), st(c.music_volume), this._vol], () => this._renderMusic());
     this._region('callout', [st(c.weather_entity), st(c.sun_entity), st(c.rain_window), this._forecast, this._forecastFailed, this._radarSummary, this._minute], () => this._renderCallout());
@@ -914,9 +949,11 @@ class WallHorizonCard extends HTMLElement {
       const live = num(s?.attributes?.current_temperature);
       if (live !== null) cache.temps[r.entity] = live;
       const v = roomView(s, cache.temps[r.entity]);
+      // hot_when: the room's appliance is on, so its icon runs warm. Only an on entity counts.
+      const hot = roomHot(this._hass.states[r.hot_when]);
       const name = r.name || s?.attributes?.friendly_name || r.entity;
       const said = v.temp === '—' ? 'unavailable' : `${v.temp.replace('°', ' degrees')}${v.stale ? ', last known' : ''}`;
-      return `<button type="button" class="room" data-act="room" data-i="${i}" data-h="${v.mode}" aria-label="${esc(name)}, ${said}${v.mode ? `, ${v.mode} mode` : ''}. Opens the thermostat."><span class="hv">${icon(r.icon || 'mdi:thermostat')}</span><span class="t${v.stale ? ' stale' : ''}">${v.temp}</span><span class="n">${twoLines(name).map(esc).join('<br>')}</span></button>`;
+      return `<button type="button" class="room" data-act="room" data-i="${i}" data-h="${v.mode}"${hot ? ' data-hot' : ''} aria-label="${esc(name)}, ${said}${v.mode ? `, ${v.mode} mode` : ''}${hot ? ', in use' : ''}. Opens the thermostat."><span class="hv">${icon(r.icon || 'mdi:thermostat')}</span><span class="t${v.stale ? ' stale' : ''}">${v.temp}</span><span class="n">${twoLines(name).map(esc).join('<br>')}</span></button>`;
     }).join(''));
     saveLastKnown(cache);
   }
@@ -1010,6 +1047,16 @@ class WallHorizonCard extends HTMLElement {
       case 'tab':
         this._sheet = Number(el.dataset.i);
         this._render();
+        break;
+      case 'fire':
+      case 'thermo':
+      case 'cold':
+        this._firePick(el.dataset.act);
+        break;
+      case 'flame':
+      case 'fan':
+      case 'timer':
+        this._firePick(el.dataset.act, el.dataset.v);
         break;
       case 'close':
         this._closeSheet();
@@ -1118,6 +1165,68 @@ class WallHorizonCard extends HTMLElement {
     });
   }
 
+  /** The fireplace's chips: one service call each, held pending until the appliance's broadcast agrees. */
+  _firePick(act, value) {
+    const f = this._config.fireplace;
+    if (!f || !this._hass) return;
+    const st = (id) => (id ? this._hass.states[id] : undefined);
+    const fail = "Couldn't reach the fireplace";
+    const send = (id, domain, service, data) => this._call(domain, service, data, { entity_id: id }, null, fail).then((ok) => {
+      if (ok) return;
+      this._pend.delete(id);
+      this._render();
+    });
+    switch (act) {
+      case 'fire': {
+        // One tap, like every other chip. Held while a request is in flight so a double tap is not two commands.
+        if (!f.power || this._pend.has(f.power)) return;
+        const want = st(f.burning)?.state === 'on' ? 'off' : 'on';
+        this._pendSet(f.power, want);
+        send(f.power, 'switch', want === 'on' ? 'turn_on' : 'turn_off', {});
+        break;
+      }
+      case 'thermo': {
+        const climate = this._clim[f.entity];
+        if (!climate) return;
+        this._call('climate', 'set_hvac_mode', { hvac_mode: climate.mode.shown === 'off' ? 'heat' : 'off' }, { entity_id: f.entity }, null, "Couldn't reach the thermostat");
+        break;
+      }
+      case 'cold': {
+        if (!f.cold) return;
+        const want = st(f.cold)?.state === 'on' ? 'off' : 'on';
+        this._pendSet(f.cold, want);
+        send(f.cold, 'switch', want === 'on' ? 'turn_on' : 'turn_off', {});
+        break;
+      }
+      case 'flame':
+      case 'fan': {
+        const id = act === 'flame' ? f.flame : f.fan;
+        if (!id) return;
+        this._pendSet(id, value);
+        send(id, 'select', 'select_option', { option: value });
+        break;
+      }
+      case 'timer': {
+        if (!f.timer) return;
+        const v = Number(value);
+        if (!Number.isFinite(v)) return;
+        this._pendSet(f.timer, v, true);
+        send(f.timer, 'number', 'set_value', { value: v });
+        break;
+      }
+      default:
+        return;
+    }
+    this._render();
+  }
+
+  /** Hold a requested value on its entity's chips until the entity agrees or the window closes. */
+  _pendSet(entity, value, numeric = false) {
+    this._pend.set(entity, { value, numeric, until: Date.now() + PENDING_MS });
+    clearTimeout(this._pendTimer);
+    this._pendTimer = this.isConnected ? setTimeout(() => this._render(), PENDING_MS + 50) : null;
+  }
+
   /** One timer for every room: the earliest debounce end or confirmation timeout. */
   _climSchedule() {
     let due = null;
@@ -1190,9 +1299,16 @@ class WallHorizonCard extends HTMLElement {
   }
 
 
-  /** The open room: its entity, fields and what the sheet shows. */
+  /** The open sheet's zone: the room, or the fireplace after it. */
+  _sheetZone() {
+    const zones = sheetZones(this._config);
+    return zones[this._sheet] || zones[0];
+  }
+
+  /** The open zone: its entity, fields and what the sheet shows. */
   _sheetView() {
-    const entity = this._config.rooms[this._sheet].entity;
+    const zone = this._sheetZone();
+    const entity = zone ? zone.entity : '';
     const so = this._hass.states[entity];
     const c = this._clim[entity];
     const available = !!so && so.state !== 'unavailable' && so.state !== 'unknown';
@@ -1265,12 +1381,18 @@ class WallHorizonCard extends HTMLElement {
 
   _renderSheet() {
     const e = this._el;
+    const zones = sheetZones(this._config);
+    const zone = zones[this._sheet] || zones[0];
+    if (!zone) {
+      this._closeSheet();
+      return;
+    }
     const v = this._sheetView();
-    const rooms = this._config.rooms;
-    setHTML(e.shTabs, rooms.map((r, i) => {
-      const so = this._hass.states[r.entity];
+    setHTML(e.shTabs, zones.map((z, i) => {
+      const so = this._hass.states[z.entity];
       const na = !so || so.state === 'unavailable' || so.state === 'unknown';
-      return `<button type="button" class="tab" data-act="tab" data-i="${i}" aria-pressed="${i === this._sheet}"${na ? ' data-na' : ''}>${esc(this._roomName(r.entity))}</button>`;
+      const label = z.kind === 'fireplace' ? z.name : this._roomName(z.entity);
+      return `<button type="button" class="tab" data-act="tab" data-i="${i}" aria-pressed="${i === this._sheet}"${na ? ' data-na' : ''}>${esc(label)}</button>`;
     }).join(''));
     setText(e.shName, this._roomName(v.entity));
     e.sheet.style.setProperty('--mc', modeColor(v.mode, v.available));
@@ -1312,13 +1434,62 @@ class WallHorizonCard extends HTMLElement {
       e.dNowT.setAttribute('y', (q.y - p.y).toFixed(1));
     }
     e.dRing.classList.toggle('sending', !!v.c.temp.pending);
-    // Unavailable entities report no lists: show every chip, disabled, so the column keeps its shape.
-    const chip = (act, [val, label], f, color) => `<button type="button" class="chip" data-act="${act}" data-v="${esc(val)}" aria-pressed="${val === f.shown}"${f.pending?.value === val ? ' data-pending' : ''}${v.available ? '' : ' disabled'} style="--c:${color}">${act === 'mode' ? '<i></i>' : ''}${label}</button>`;
-    const modes = v.available ? chipsFor(MODE_CHIPS, v.so.attributes?.hvac_modes) : MODE_CHIPS;
-    const fans = v.available ? chipsFor(FAN_CHIPS, v.so.attributes?.fan_modes) : FAN_CHIPS;
-    setHTML(e.shModes, modes.map((ch) => chip('mode', ch, v.c.mode, MODE_COLORS[ch[0]])).join(''));
-    setHTML(e.shFans, fans.map((ch) => chip('fan', ch, v.c.fan, '#f3f6fb')).join(''));
+    // The fireplace is its own sheet: same dial, its own four chip rows. The room markup is left alone.
+    const fire = zone.kind === 'fireplace';
+    for (const el of [e.shName, e.shLblMode, e.shModes, e.shLblFan, e.shFans]) el.hidden = fire;
+    e.shFire.hidden = !fire;
+    if (fire) {
+      this._renderFire(zone);
+    } else {
+      // Unavailable entities report no lists: show every chip, disabled, so the column keeps its shape.
+      const chip = (act, [val, label], f, color) => `<button type="button" class="chip" data-act="${act}" data-v="${esc(val)}" aria-pressed="${val === f.shown}"${f.pending?.value === val ? ' data-pending' : ''}${v.available ? '' : ' disabled'} style="--c:${color}">${act === 'mode' ? '<i></i>' : ''}${label}</button>`;
+      const modes = v.available ? chipsFor(MODE_CHIPS, v.so.attributes?.hvac_modes) : MODE_CHIPS;
+      const fans = v.available ? chipsFor(FAN_CHIPS, v.so.attributes?.fan_modes) : FAN_CHIPS;
+      setHTML(e.shModes, modes.map((ch) => chip('mode', ch, v.c.mode, MODE_COLORS[ch[0]])).join(''));
+      setHTML(e.shFans, fans.map((ch) => chip('fan', ch, v.c.fan, '#f3f6fb')).join(''));
+    }
     this._paintDial();
+  }
+
+  /** The fireplace's own sheet: Fire, Thermostat, Cold, then Flame, Fan and Timer rows from the entities. */
+  _renderFire(f) {
+    const e = this._el;
+    const h = this._hass;
+    const st = (id) => (id ? h.states[id] : undefined);
+    const now = Date.now();
+    // A request is done when the entity agrees with it, or when its window closes.
+    for (const [id, p] of this._pend) {
+      const cur = st(id)?.state;
+      const same = p.numeric ? num(cur) === p.value : String(cur) === String(p.value);
+      if (same || now >= p.until) this._pend.delete(id);
+    }
+    const held = (id, value) => pendingHolds(this._pend.get(id), value, now);
+    const burning = st(f.burning)?.state === 'on';
+    const coldOn = st(f.cold)?.state === 'on';
+    const climate = this._clim[f.entity];
+    const so = st(f.entity);
+    const climateOk = !!so && so.state !== 'unavailable' && so.state !== 'unknown';
+    const thermoOn = climateOk && !!climate && climate.mode.shown !== 'off' && climate.mode.shown !== null;
+    const fireHold = this._pend.has(f.power);
+    const tone = '#ff7a3d';
+    const chip = (act, value, label, pressed, o = {}) => {
+      const v = value === undefined ? '' : ` data-v="${esc(String(value))}"`;
+      return `<button type="button" class="chip" data-act="${act}"${v} aria-pressed="${!!pressed}"${o.pending ? ' data-pending' : ''}${o.disabled ? ' disabled' : ''} style="--c:${o.color || '#f3f6fb'}">${o.dot ? '<i></i>' : ''}${esc(label)}</button>`;
+    };
+    const options = (id) => (st(id) ? optionChips(st(id)) : []);
+    setHTML(e.shFire, `
+      <div class="sh-name">${esc(f.name)}</div>
+      <div class="sh-lbl">CONTROLS</div>
+      <div class="row3">${chip('fire', undefined, 'Fire', burning, { color: tone, dot: true, pending: fireHold, disabled: !f.power })}${chip('thermo', undefined, 'Thermostat', thermoOn, { color: '#5aa9ff', dot: true, pending: !!climate?.mode.pending, disabled: !climateOk })}${chip('cold', undefined, 'Cold', coldOn, { pending: held(f.cold, coldOn ? 'off' : 'on'), disabled: !f.cold })}</div>
+      <div class="sh-lbl">FLAME</div>
+      <div class="row5">${options(f.flame).map(([val, label]) => chip('flame', val, label, st(f.flame)?.state === val, { color: tone, pending: held(f.flame, val) })).join('')}</div>
+      <div class="sh-lbl">FAN</div>
+      <div class="row5">${options(f.fan).map(([val, label]) => chip('fan', val, label, st(f.fan)?.state === val, { pending: held(f.fan, val) })).join('')}</div>
+      <div class="sh-lbl">TIMER</div>
+      <div class="row5">${timerChips(st(f.timer)).map(([val, label]) => chip('timer', val, label, num(st(f.timer)?.state) === val, { pending: held(f.timer, val) })).join('')}</div>
+    `);
+    // The dial's status line carries the appliance's own broadcast rather than the thermostat's.
+    setText(e.dStatus, fireplaceStatus({ burning: st(f.burning), hot: st(f.hot), fanRunning: st(f.fan_running), timerRemaining: st(f.timer_remaining), receiving: st(f.receiving) }));
   }
 
   _paintDial() {
@@ -1609,8 +1780,8 @@ class WallHorizonCard extends HTMLElement {
   }
 }
 
-// A second copy (e.g. the resource listed under two ?v= values) must not throw.
-if (!customElements.get('wall-horizon-card')) {
+// A second copy (e.g. the resource listed under two ?v= values) must not throw, and Node has no customElements.
+if (globalThis.customElements && !customElements.get('wall-horizon-card')) {
   customElements.define('wall-horizon-card', WallHorizonCard);
   window.customCards = window.customCards || [];
   window.customCards.push({

@@ -169,6 +169,9 @@ This is a household display that was built for one home and then made configurab
 - Every entity is optional. Anything you do not configure is not drawn. With only `type` set you get the radar,
   the clock and the date.
 - Up to 3 `climate` rooms. Tapping one opens a thermostat sheet (target, mode, fan).
+- A fireplace can have its own fourth sheet, reached from that thermostat sheet's tabs: Fire, Thermostat, Cold
+  climate, Flame, Fan and Timer. It is never drawn on the wall as a tile. Any room can also name an entity that
+  turns its icon warm while the appliance is on (`hot_when`).
 - A "callout" bubble next to your location can say what the radar and forecast mean right now: rain starting or
   ending, a warning over you, or a quiet line about the day. It is off by default; `show_callout: true` turns it on.
 - The household controls are specific: a switch drawn as a round Xbox-logo button (gray off, green on), two projector-screen buttons that each
@@ -183,7 +186,8 @@ This is a household display that was built for one home and then made configurab
 | `temperature_entity` | unset | `sensor` | Outside temperature. |
 | `weather_entity` | unset | `weather` | Condition line, 4-day forecast, callout. |
 | `sun_entity` | `sun.sun` | `sun` | Day/night. |
-| `rooms` | `[]` | `climate` (up to 3) | Room temperatures and thermostat sheet. |
+| `rooms` | `[]` | `climate` (up to 3) | Room temperatures and thermostat sheet. A room may add `hot_when: <entity>` to draw its icon warm while that entity is on. |
+| `fireplace` | unset | `climate` (+ `switch`, `select`, `number`, `binary_sensor`) | A fourth sheet in the thermostat tabs: fire, thermostat, cold climate, flame, fan and timer. Never drawn on the wall. |
 | `music` | unset | `media_player` | Now-playing pill; a tap opens the music sheet (transport, progress, volume). |
 | `music_when` | unset | `media_player` | The receiver that must be on for the pill and the sheet; private listening leaves the wall alone. |
 | `music_takeover` | `false` | | Open the music sheet by itself while the music plays; close it when playback stops or pauses. |

@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.4.0
+
+- Horizon: an optional `fireplace` sheet, opened from a fourth tab in the room thermostat sheet and never drawn on
+  the wall. The dial and the Thermostat chip drive the climate entity; Fire, Cold climate, Flame, Fan and Timer are
+  their own rows, built from the entities' own options and ranges. Each request shows as pending until the
+  appliance's own state agrees (10 s), then reverts with a toast. Starting the fire is one tap, like every other
+  control. Every entity but `entity` is optional, and a control without one is not drawn.
+- Horizon: `rooms[].hot_when` draws a room's icon warm while the named entity is on, so the wall shows a burning
+  fireplace without adding a tile. A colour change only; a missing, unavailable or off entity leaves the icon as
+  it was.
+
 ## 1.3.2
 
 - Horizon: the cached last-known temperatures now render at full brightness instead of dimmed, so a room, the

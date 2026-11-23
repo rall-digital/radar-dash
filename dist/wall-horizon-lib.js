@@ -952,3 +952,64 @@ export function thermostatCall(entity, field, value) {
   if (!def) throw new Error(`wall-thermostat-card: unknown field ${field}`);
   return ['climate', def[0], { [def[1]]: value }, { entity_id: entity }];
 }
+
+// ---- fireplace: one warm icon on the wall, and a fourth sheet after the rooms --------------------
+// A fireplace is not a room. Its climate entity carries only the thermostat, and the fire is a
+// separate switch, so its controls are their own rows and the rooms are left exactly as they were.
+
+/** A room's icon runs warm while its appliance is on. Only a present, on entity counts. */
+export function roomHot(stateObj) {
+  return stateObj?.state === 'on';
+}
+
+/** The sheets, in tab order: the rooms, then the fireplace when one is configured. */
+export function sheetZones(config) {
+  const rooms = (Array.isArray(config?.rooms) ? config.rooms : [])
+    .filter((r) => r && typeof r.entity === 'string')
+    .map((r) => ({ kind: 'room', entity: r.entity, name: r.name || '', icon: r.icon || '' }));
+  const f = config?.fireplace;
+  if (!f || typeof f !== 'object' || typeof f.entity !== 'string') return rooms;
+  return [...rooms, { ...f, kind: 'fireplace', name: f.name || 'Fireplace' }];
+}
+
+/** "Level 1" reads "1"; every other option is shown as the entity spells it. */
+export function shortOptionLabel(option) {
+  const m = /^Level\s+(\d+)$/i.exec(String(option));
+  return m ? m[1] : String(option);
+}
+
+/** A select's options as [value, short label], for the five-wide chip rows. */
+export function optionChips(stateObj) {
+  const list = stateObj?.attributes?.options;
+  const options = (Array.isArray(list) ? list : []).filter((o) => typeof o === 'string');
+  return options.map((o) => [o, shortOptionLabel(o)]);
+}
+
+/** Timer presets from the number entity's own range; the lowest value is the "Off" chip. */
+export function timerChips(stateObj) {
+  const attrs = stateObj?.attributes;
+  const lo = num(attrs?.min) ?? 0;
+  const hi = num(attrs?.max) ?? 180;
+  const presets = new Set([0, 30, 60, 120, 180].filter((v) => v >= lo && v <= hi));
+  presets.add(lo);
+  return [...presets].sort((x, y) => x - y).map((v) => [v, v === 0 ? 'Off' : String(v)]);
+}
+
+/** How long a requested value shows as pending before it reverts, with a toast, as unanswered. */
+export const PENDING_MS = 10000;
+
+/** True while a request for this value is still waiting for the entity to agree. */
+export function pendingHolds(pending, value, now) {
+  return !!pending && String(pending.value) === String(value) && now < pending.until;
+}
+
+/** The line under the dial: what the appliance is doing, from its own broadcasts. */
+export function fireplaceStatus({ burning, hot, fanRunning, timerRemaining, receiving } = {}) {
+  if (receiving && receiving.state === 'off') return 'Fireplace offline';
+  const parts = [burning?.state === 'on' ? 'Burning' : 'Off'];
+  const mins = num(timerRemaining?.state);
+  if (mins !== null && mins > 0) parts.push(`${Math.round(mins)} min left`);
+  if (fanRunning?.state === 'on') parts.push('Fan running');
+  if (hot?.state === 'on') parts.push('Hot');
+  return parts.join(' · ');
+}
