@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.1
+
+- Horizon fireplace sheet: a row is drawn only when it has chips, so an unconfigured or unavailable flame, fan or
+  timer no longer leaves an empty label on the sheet.
+- Horizon fireplace sheet: the Fire, Cold and Timer chips are disabled while their entities are missing or
+  unavailable, instead of sending a call that cannot succeed.
+- Horizon fireplace sheet: "Thermostat" no longer touches the chip edges in the three-cell controls row.
+
 ## 1.4.0
 
 - Horizon: an optional `fireplace` sheet, opened from a fourth tab in the room thermostat sheet and never drawn on

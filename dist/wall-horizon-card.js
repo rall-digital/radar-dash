@@ -351,7 +351,9 @@ const SHEET_CSS = `
   .sh-fire[hidden] { display: none; }
   .sh-fire .row3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
   .sh-fire .row5 { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
-  .sh-fire .chip { height: 64px; border-radius: 20px; font-size: 24px; }
+  .sh-fire .chip { height: 64px; border-radius: 20px; font-size: 24px; padding: 0 8px; }
+  /* Three cells must hold "Thermostat": one step down keeps it clear of the edges. */
+  .sh-fire .row3 .chip { font-size: 21px; }
   .sh-fire .sh-lbl { margin-top: 22px; }
   @media (prefers-reduced-motion: reduce) {
     .d-ring.sending, .chip[data-pending]::after { animation: none; }
@@ -1477,16 +1479,18 @@ class WallHorizonCard extends (globalThis.HTMLElement ?? class {}) {
       return `<button type="button" class="chip" data-act="${act}"${v} aria-pressed="${!!pressed}"${o.pending ? ' data-pending' : ''}${o.disabled ? ' disabled' : ''} style="--c:${o.color || '#f3f6fb'}">${o.dot ? '<i></i>' : ''}${esc(label)}</button>`;
     };
     const options = (id) => (st(id) ? optionChips(st(id)) : []);
+    // A row is drawn only when it has something to say: an unset or unavailable entity leaves no empty label.
+    const flameChips = options(f.flame).map(([val, label]) => chip('flame', val, label, st(f.flame)?.state === val, { color: tone, pending: held(f.flame, val) })).join('');
+    const fanChips = options(f.fan).map(([val, label]) => chip('fan', val, label, st(f.fan)?.state === val, { pending: held(f.fan, val) })).join('');
+    const timerHtml = f.timer ? timerChips(st(f.timer)).map(([val, label]) => chip('timer', val, label, num(st(f.timer)?.state) === val, { pending: held(f.timer, val), disabled: !st(f.timer) })).join('') : '';
+    const row = (label, cls, chips) => (chips ? `<div class="sh-lbl">${label}</div><div class="${cls}">${chips}</div>` : '');
     setHTML(e.shFire, `
       <div class="sh-name">${esc(f.name)}</div>
       <div class="sh-lbl">CONTROLS</div>
-      <div class="row3">${chip('fire', undefined, 'Fire', burning, { color: tone, dot: true, pending: fireHold, disabled: !f.power })}${chip('thermo', undefined, 'Thermostat', thermoOn, { color: '#5aa9ff', dot: true, pending: !!climate?.mode.pending, disabled: !climateOk })}${chip('cold', undefined, 'Cold', coldOn, { pending: held(f.cold, coldOn ? 'off' : 'on'), disabled: !f.cold })}</div>
-      <div class="sh-lbl">FLAME</div>
-      <div class="row5">${options(f.flame).map(([val, label]) => chip('flame', val, label, st(f.flame)?.state === val, { color: tone, pending: held(f.flame, val) })).join('')}</div>
-      <div class="sh-lbl">FAN</div>
-      <div class="row5">${options(f.fan).map(([val, label]) => chip('fan', val, label, st(f.fan)?.state === val, { pending: held(f.fan, val) })).join('')}</div>
-      <div class="sh-lbl">TIMER</div>
-      <div class="row5">${timerChips(st(f.timer)).map(([val, label]) => chip('timer', val, label, num(st(f.timer)?.state) === val, { pending: held(f.timer, val) })).join('')}</div>
+      <div class="row3">${chip('fire', undefined, 'Fire', burning, { color: tone, dot: true, pending: fireHold, disabled: !f.power || !st(f.power) })}${chip('thermo', undefined, 'Thermostat', thermoOn, { color: '#5aa9ff', dot: true, pending: !!climate?.mode.pending, disabled: !climateOk })}${chip('cold', undefined, 'Cold', coldOn, { pending: held(f.cold, coldOn ? 'off' : 'on'), disabled: !f.cold || !st(f.cold) })}</div>
+      ${row('FLAME', 'row5', flameChips)}
+      ${row('FAN', 'row5', fanChips)}
+      ${row('TIMER', 'row5', timerHtml)}
     `);
     // The dial's status line carries the appliance's own broadcast rather than the thermostat's.
     setText(e.dStatus, fireplaceStatus({ burning: st(f.burning), hot: st(f.hot), fanRunning: st(f.fan_running), timerRemaining: st(f.timer_remaining), receiving: st(f.receiving) }));
