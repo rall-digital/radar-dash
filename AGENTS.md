@@ -131,6 +131,7 @@ Decide with the human which install they want:
   | `weather_entity` | the `weather.*` entity. One: use it. Several: ask. None: leave unset. |
   | `temperature_entity` | a `sensor.*` with device class `temperature` that is clearly outdoors. Unclear: ask. None: leave unset. |
   | `rooms` | up to 3 `climate.*` entities. More than 3: ask which. None: leave it out. |
+  | `fireplace` | only if the human asks for a fireplace sheet: the `climate.*` for its thermostat, plus whatever the appliance exposes for the fire itself (a `switch`, the `binary_sensor` that says it is lit, and `select`/`number` entities for flame, fan and timer). Leave it out otherwise: it is never drawn on the wall. |
   | `music` | optional; only if the human names a `media_player.*`. |
 
   Leave `xbox`, `screen`, `volume`, `select` and `rain_window` out. They need switches, automations and scripts

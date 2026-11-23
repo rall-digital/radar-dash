@@ -130,6 +130,14 @@ resource; it needs no resource of its own. With nothing but `type` it shows the 
 | `weather_entity` | entity | unset: no condition line, no forecast rows | `weather` (must support daily and hourly forecasts) | Condition (with `show_condition`), today's high/low (with `show_high_low`), a 4-day forecast, and input to the callout. |
 | `sun_entity` | entity | `sun.sun` | `sun` | Day/night icon and the callout's "clear tonight" line. |
 | `rooms` | list of up to 3 `{ entity, icon, name }` | `[]` | `climate` | Room temperatures along the bottom; a tap opens a thermostat sheet (target, mode, fan). `icon` (an `mdi:` name) and `name` are optional; a name with spaces is shown on two lines, split at the space nearest the middle. |
+| `rooms[].hot_when` | entity | unset: the icon never runs warm | any entity with an `on` state | The room's icon is drawn in the fireplace's warm colour while this entity is `on`; missing, unavailable or off leaves it exactly as it was. A colour change only: no glow, no animation, no size change. The screen-reader label adds ", in use". |
+| `fireplace` | mapping; `entity` required | unset: no fourth sheet | `climate` plus the optional entities below | A fireplace's own sheet, opened from the room sheet's tabs and never from the wall. `name` (default "Fireplace") is the tab label; `icon` is unused by the sheet. `entity` drives the dial and the Thermostat chip (mode Off / Heat). |
+| `fireplace.power` | entity | unset: the Fire chip is a status pill | `switch` | `turn_on` / `turn_off` for the fire itself, which is independent of the thermostat on this appliance. One tap, like every other chip. |
+| `fireplace.burning` | entity | unset: the Fire chip shows no state | `binary_sensor` | Whether the fire is lit. This is usually what `rooms[].hot_when` points at. |
+| `fireplace.flame` / `fireplace.fan` | entity | unset: that row is not drawn | `select` | Chips are the entity's own `options`, with "Level 1" shown as "1". |
+| `fireplace.timer` | entity | unset: that row is not drawn | `number` | Presets (Off, 30, 60, 120, 180) inside the entity's `min` / `max`; the lowest value is the "Off" chip. |
+| `fireplace.cold` | entity | unset: the chip is not drawn | `switch` | The cold-climate pilot toggle. |
+| `fireplace.receiving` / `fan_running` / `hot` / `timer_remaining` | entities | unset: left out of the line | `binary_sensor` / `sensor` | The dial's status line: "Burning · 42 min left · Fan running · Hot", or "Fireplace offline" while `receiving` is off. |
 | `music` | entity | unset: no pill | `media_player` | While it is `playing`: a now-playing pill with a pause button, in place of the `xbox`/`screen` controls. Tapping the pill opens the music sheet: art, title, artist, album, progress, previous / play-pause / next. It stays open while the player is playing or paused, and closes after 30 s without a touch. With `music_takeover` it opens by itself. |
 | `music_when` | entity | unset: only the player's own state counts | `media_player` | A receiver that must be on for the pill and the sheet, for example the Denon the music comes out of. While it is `off`, `standby` or unreachable, the pill stays hidden and the sheet is not taken over, so listening privately on a phone leaves the wall alone. |
 | `music_takeover` | boolean | `false` | none | The music sheet takes the wall by itself while `music` is playing (and `music_when`, if set, is on), and closes when playback stops or pauses. The ✕ keeps it closed until playback stops. |
@@ -172,6 +180,7 @@ weather_entity: weather.forecast_home
 | `weather_entity` | the `weather.*` entity the household already uses; if several, ask |
 | `temperature_entity` | a `sensor.*` with `device_class: temperature` that is outdoors; if unclear, ask, or leave unset |
 | `rooms` | up to 3 `climate.*` entities; if more than 3, ask which |
+| `fireplace` | only if the human asks for a fireplace sheet: a `climate.*` for its thermostat, plus the appliance's switch for the fire, the binary sensor that says it is lit, and the select/number entities for flame, fan and timer |
 | `music` | a `media_player.*` the household plays music on; optional |
 | `music_volume` | a `media_player.*` receiver (such as a Denon) for the music sheet's volume; only if the human names it |
 | everything under `xbox`, `screen`, `volume`, `select`, `rain_window` | leave unset unless the human asks for it and names the entities |
